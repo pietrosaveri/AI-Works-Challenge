@@ -1,0 +1,335 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400&family=Lato:wght@300;400&display=swap');
+
+:root {
+    --bg-color: #FDF5E6; /* Parchment */
+    --text-color: #2C2C2C; /* Ink Black */
+    --accent-color: #800000; /* Maroon */
+    --secondary-color: #D2B48C; /* Tan */
+    --white: #ffffff;
+    --paper-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'EB Garamond', serif;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+}
+
+/* Navigation */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background-color: rgba(253, 245, 230, 0.95);
+    border-bottom: 1px solid var(--secondary-color);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.logo {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--accent-color);
+}
+
+.nav-links {
+    list-style: none;
+    display: flex;
+    gap: 2rem;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: var(--text-color);
+    font-family: 'Cinzel', serif;
+    font-size: 0.9rem;
+    transition: color 0.3s;
+}
+
+.nav-links a:hover {
+    color: var(--accent-color);
+}
+
+.cta-btn {
+    border: 1px solid var(--accent-color);
+    padding: 0.5rem 1rem;
+    border-radius: 2px;
+}
+
+.cta-btn:hover {
+    background-color: var(--accent-color);
+    color: var(--bg-color) !important;
+}
+
+/* Sections */
+.page-section {
+    min-height: 90vh;
+    padding-top: 2rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+/* Hero */
+.hero-fullscreen {
+    height: 80vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    background: radial-gradient(circle at center, transparent 0%, var(--bg-color) 100%), url('https://www.transparenttextures.com/patterns/aged-paper.png');
+}
+
+.hero-content h1 {
+    font-size: 4rem;
+    margin-bottom: 1rem;
+    font-family: 'Cinzel', serif;
+    color: var(--accent-color);
+}
+
+.subtitle {
+    font-size: 1.5rem;
+    font-style: italic;
+    margin-bottom: 2rem;
+}
+
+.description {
+    max-width: 600px;
+    margin: 0 auto 3rem auto;
+    font-size: 1.1rem;
+}
+
+/* Typography */
+h2 {
+    font-family: 'Cinzel', serif;
+    color: var(--accent-color);
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+h3 {
+    font-family: 'Cinzel', serif;
+    color: var(--text-color);
+    border-bottom: 1px solid var(--secondary-color);
+    padding-bottom: 0.5rem;
+    margin-top: 2rem;
+}
+
+/* Forms & Cards */
+.card {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--secondary-color);
+    padding: 3rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--paper-shadow);
+    border-radius: 2px;
+}
+
+.input-group {
+    margin-bottom: 2rem;
+}
+
+label {
+    display: block;
+    margin-bottom: 0.8rem;
+    font-weight: bold;
+    color: var(--accent-color);
+    font-family: 'Cinzel', serif;
+}
+
+input[type="text"], textarea, input[type="file"] {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid var(--secondary-color);
+    background: rgba(255, 255, 255, 0.8);
+    font-family: 'EB Garamond', serif;
+    font-size: 1.1rem;
+    box-sizing: border-box;
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    background: #fff;
+}
+
+/* Buttons */
+.primary-btn {
+    background-color: var(--accent-color);
+    color: var(--bg-color);
+    border: none;
+    padding: 1rem 2.5rem;
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+    letter-spacing: 1px;
+}
+
+.primary-btn:hover {
+    background-color: #600000;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+}
+
+.secondary-btn {
+    background-color: transparent;
+    color: var(--text-color);
+    border: 1px solid var(--text-color);
+    padding: 1rem 2rem;
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.secondary-btn:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+
+.button-group {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+}
+
+/* CV Preview - The Paper */
+.paper-a4 {
+    background: white;
+    width: 210mm;
+    min-height: 297mm;
+    margin: 2rem auto;
+    padding: 20mm;
+    box-shadow: var(--paper-shadow);
+    box-sizing: border-box;
+    position: relative;
+    color: #1a1a1a;
+}
+
+/* CV Internal Styling */
+.cv-header {
+    text-align: center;
+    margin-bottom: 3rem;
+    border-bottom: 2px solid var(--accent-color);
+    padding-bottom: 2rem;
+}
+
+.cv-name {
+    font-family: 'Cinzel', serif;
+    font-size: 2.5rem;
+    color: var(--text-color);
+    margin: 0;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+}
+
+.cv-tagline {
+    font-style: italic;
+    color: #555;
+    font-size: 1.2rem;
+    margin-top: 0.5rem;
+}
+
+.cv-section {
+    margin-bottom: 2.5rem;
+}
+
+.cv-section-title {
+    font-family: 'Cinzel', serif;
+    color: var(--accent-color);
+    font-size: 1.2rem;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 1rem;
+    padding-bottom: 0.2rem;
+    text-transform: uppercase;
+}
+
+.cv-content {
+    text-align: justify;
+    font-size: 1.05rem;
+}
+
+.cv-project {
+    margin-bottom: 1.5rem;
+}
+
+.cv-project-title {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 0.3rem;
+}
+
+.cv-footer {
+    text-align: center;
+    margin-top: 4rem;
+    font-size: 0.8rem;
+    color: #888;
+    border-top: 1px solid #eee;
+    padding-top: 1rem;
+}
+
+/* Loader */
+.loader {
+    text-align: center;
+    padding: 4rem;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 3px solid rgba(128, 0, 0, 0.3);
+    border-radius: 50%;
+    border-top-color: var(--accent-color);
+    animation: spin 1s ease-in-out infinite;
+    margin: 0 auto 1rem auto;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Animations */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Print Styles */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #cv-preview, #cv-preview * {
+        visibility: visible;
+    }
+    #cv-preview {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        box-shadow: none;
+    }
+    @page {
+        margin: 2cm;
+    }
+}

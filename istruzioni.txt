@@ -1,0 +1,58 @@
+LA CHALLENGE: L'ANTI-PORTFOLIO
+
+Il problema che stiamo risolvendo:
+Il portfolio tradizionale è obsoleto. Liste di job titles, screenshot generici, CV tutti uguali - non raccontano chi sei veramente, come pensi, perché sei unico.
+
+La tua missione:
+Ripensa il portfolio professionale assumendo che l'AI sia sempre esistita. Non stiamo cercando un CV "potenziato" dall'AI, ma un formato completamente nuovo che:
+
+Valorizza l'unicità umana, non il job title
+Mostra COME pensi e risolvi problemi, non solo COSA hai fatto
+Racconta la tua "impronta professionale" unica
+Dimostra risultati concreti con proof tangibili
+Rivela il tuo processo e metodologia, non solo l'output finale
+COSA DEVI CONSEGNARE (3 DELIVERABLE)
+
+1️⃣ PORTFOLIO GENERATOR TOOL 
+
+Un tool AI-powered che genera portfolio personalizzati
+
+Input che deve gestire:
+
+Informazioni professionali (CV, LinkedIn export, testo libero)
+Progetti e lavori passati (GitHub, Behance, case study)
+Filosofia lavorativa e metodologie personali
+Interessi, passioni, cosa ami/odi del tuo lavoro
+Fallimenti e lezioni apprese
+Output che deve produrre:
+
+Portfolio web personalizzato e unico per ogni persona
+Formato che rompe con le convenzioni tradizionali
+Focus su "cosa so fare meglio di chiunque altro"
+Consegna: Link GitHub repository + README con istruzioni per installazione e uso. Il tool deve FUNZIONARE (non solo concept).
+
+
+3️⃣ FRAMEWORK DOCUMENT 
+
+Spiega la filosofia del tuo anti-portfolio
+
+Deve contenere:
+
+Assunti base: Cosa rende un portfolio "anti-traditional"?
+Pattern e domande: Quali informazioni raccogli e perché?
+Principi di design: Come valorizzi unicità vs standardizzazione?
+Elementi distintivi: Almeno 5 caratteristiche che lo differenziano (es: zero job titles, failures section, metodologie proprietarie, metriche reali, processo oltre risultato)
+Visione AI-native: Come ripensa il portfolio per un mondo dove l'AI è sempre esistita?
+
+
+IL MINDSET GIUSTO
+
+Non pensare a:
+
+"Come posso usare l'AI per migliorare un CV?"
+"Quali tool AI posso integrare?"
+Pensa invece a:
+
+"Se l'AI fosse sempre esistita, come mostreremmo il valore umano?"
+"Cosa rende una persona insostituibile in un mondo AI?"
+"Come catturare l'essenza di chi sono, non solo cosa ho fatto?"
