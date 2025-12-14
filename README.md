@@ -20,6 +20,8 @@ Plato doesn't create portfolios. It creates **interpretations**.
 3. **Anti-Standardization**: Most tools try to standardize uniqueness. We do the opposite.
 4. **AI to Reveal Humanity**: We use AI not to enhance a CV, but as an analytical instrument to detect behavioral patterns, contradictions, and decision-making styles.
 
+![WhatsApp Image 2025-12-13 at 23 57 06](https://github.com/user-attachments/assets/7ed2c062-9801-491a-88a0-ec82034d1da7)
+
 ## How We Do It: The Multi-Agent System
 
 Plato employs a **council of specialized AI agents**, each analyzing different dimensions of your professional identity. This isn't a single algorithm—it's a dialogue between analytical perspectives.
