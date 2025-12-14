@@ -205,6 +205,18 @@ class LegacyProfile(BaseModel):
 # MULTI-AGENT SYSTEM (LangChain Implementation)
 # ============================================================================
 
+class IconSuggestion(BaseModel):
+    location: str = Field(description="Where to place the icon (e.g., 'navigation', 'hero', 'pattern-card')")
+    icon_name: str = Field(description="Icon name from the library")
+    purpose: str = Field(description="Why this icon fits the content")
+
+class IconStrategy(BaseModel):
+    icon_library: str = Field(description="Icon library to use (lucide-react, heroicons, phosphor)")
+    cdn_url: str = Field(description="CDN URL for the icon library")
+    color_scheme: str = Field(description="How icons should be colored (accent, gradient, monochrome)")
+    suggestions: List[IconSuggestion] = Field(description="Specific icon placements")
+    usage_philosophy: str = Field(description="Overall approach to icon usage (minimal, decorative, functional)")
+
 class OrchestratorReport(BaseModel):
     validations: Optional[List[str]] = Field(default_factory=list)
     needs_regeneration: Optional[bool] = False
@@ -212,6 +224,110 @@ class OrchestratorReport(BaseModel):
     design_directives: Optional[dict] = Field(default_factory=dict)
     content_adjustments: Optional[dict] = Field(default_factory=dict)
     summary: Optional[str] = ""
+
+def icon_curator_agent(mood_system: dict, content_strategy: dict, ux_plan: dict, user_name: str) -> dict:
+    """
+    Icon Curator Agent: Selects appropriate icons to enhance visual design.
+    Suggests tasteful icon placement without overwhelming the design.
+    """
+    parser = PydanticOutputParser(pydantic_object=IconStrategy)
+    
+    system_prompt = """
+You are an Icon Curator and Visual Enhancement Specialist.
+Your task is to select tasteful, meaningful icons that enhance the visual design.
+
+PRINCIPLES:
+1. LESS IS MORE - Icons should enhance, not clutter (3-8 icons total)
+2. MEANINGFUL - Each icon must relate to its content
+3. CONSISTENT - Use ONE icon library throughout
+4. SUBTLE - Icons complement the design system, don't overpower it
+
+ICON LIBRARIES (choose ONE):
+- Lucide Icons: Modern, clean, minimal (RECOMMENDED for most designs)
+- Heroicons: Apple-style, outlined (great for tech/minimal)
+- Phosphor Icons: Playful, varied weights (good for creative)
+- Feather Icons: Super minimal (good for brutalist/clean)
+
+PLACEMENT STRATEGY:
+- Navigation: Small icons next to menu items (optional, only if adds value)
+- Section Headers: Decorative icons for major sections (Patterns, Failures, etc.)
+- Feature Cards: Icons to represent each pattern/skill
+- Hero: ONE subtle decorative icon (optional)
+- Footer/About: Contact/social icons
+
+ICON SELECTION RULES:
+- Match content meaning (e.g., 🎯 for goals, 🧩 for patterns, ⚡ for decisions)
+- Consider mood/personality (playful = rounded, serious = geometric)
+- Use consistent style (all outlined OR all filled, never mixed)
+
+COLOR SCHEMES:
+- Accent: Icons use the accent color from mood system
+- Gradient: Icons have gradient fills (for premium feel)
+- Monochrome: Icons match text color (for minimal feel)
+
+OUTPUT VALID JSON ONLY. NO EXPLANATIONS.
+
+{format_instructions}
+"""
+    
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("user", """Curate icons for: {user_name}
+
+MOOD SYSTEM:
+{mood_system}
+
+CONTENT STRUCTURE:
+{content_structure}
+
+UX PLAN:
+{ux_plan}
+
+Select 3-8 meaningful icons that enhance this design.""")
+    ])
+    
+    chain = prompt | llm | StrOutputParser()
+    
+    try:
+        # Create simplified content structure for token efficiency
+        pages = content_strategy.get('pages', {})
+        content_structure = {
+            'sections': list(pages.keys()),
+            'pattern_count': len(pages.get('behavioral_patterns', {}).get('patterns', [])),
+            'has_failures': bool(pages.get('failures_and_lessons')),
+            'has_decisions': bool(pages.get('decision_architecture')),
+            'style': mood_system.get('layout_style', 'Unknown')
+        }
+        
+        raw = chain.invoke({
+            "user_name": user_name,
+            "mood_system": json.dumps(mood_system, indent=2),
+            "content_structure": json.dumps(content_structure, indent=2),
+            "ux_plan": json.dumps(ux_plan, indent=2)[:1000],
+            "format_instructions": parser.get_format_instructions()
+        })
+        
+        print(f"[DEBUG] Icon Curator raw output length: {len(raw)} characters")
+        
+        data = _sanitize_json_output(raw)
+        validated = IconStrategy.model_validate(data)
+        return validated.model_dump()
+    except Exception as e:
+        print(f"Icon Curator Agent Error: {e}")
+        # Fallback with Lucide Icons
+        return {
+            "icon_library": "lucide",
+            "cdn_url": "https://unpkg.com/lucide@latest/dist/umd/lucide.min.js",
+            "color_scheme": "accent",
+            "suggestions": [
+                {"location": "navigation-home", "icon_name": "home", "purpose": "Home navigation"},
+                {"location": "navigation-patterns", "icon_name": "puzzle", "purpose": "Patterns section"},
+                {"location": "navigation-about", "icon_name": "user", "purpose": "About section"},
+                {"location": "hero-decorative", "icon_name": "sparkles", "purpose": "Hero accent"},
+                {"location": "pattern-cards", "icon_name": "target", "purpose": "Pattern indicators"}
+            ],
+            "usage_philosophy": "Minimal functional icons for navigation and section identification"
+        }
 
 def orchestrator_agent(
     mood_system: dict,
@@ -330,91 +446,201 @@ Fields:
 def mood_agent(vibe_data: dict) -> dict:
     """
     Mood Agent: Derives a visual design system from user's vibe inputs.
+    NOW DETERMINISTIC - Uses hash-based selection for consistent, diverse results.
+    This eliminates LLM unreliability while ensuring unique designs for each user.
     """
-    parser = PydanticOutputParser(pydantic_object=MoodSystem)
+    import hashlib
     
-    system_prompt = """
-You are a Visual Design Strategist and Mood Analyst.
-Your task is to translate abstract personal traits into a concrete design system.
-
-DESIGN PERSONALITY MAPPING (MANDATORY - CREATE DISTINCT STYLES):
-- If Color=Blue/Cold tones + Animal=Aquatic/Bird → Use: Dark blues, teals, fluid layouts, wave animations
-- If Color=Red/Warm tones + Animal=Predator → Use: Bold reds/oranges, sharp angles, aggressive animations
-- If Color=Green/Earth tones + Animal=Land/Plant → Use: Organic greens, rounded shapes, smooth transitions
-- If Color=Purple/Pink + Animal=Mythical → Use: Gradients, ethereal effects, dreamy animations
-- If Color=Black/White + Animal=Minimal → Use: Stark contrasts, geometric, Swiss/Brutalist style
-- If Word=Technical/Abstract → Favor: Grid systems, monospace fonts, data viz aesthetics
-- If Word=Creative/Emotional → Favor: Asymmetric layouts, script fonts, artistic flourishes
-- If Word=Professional/Serious → Favor: Clean lines, serif fonts, corporate minimalism
-
-COLOR PALETTE RULES:
-- PRIMARY: Derived from favorite color (exact hue or close variant)
-- SECONDARY: Complementary or analogous to primary
-- ACCENT: High contrast for CTAs and highlights
-- BACKGROUND: Should create mood (dark for dramatic, light for airy)
-- TEXT: High contrast with background for readability
-
-FONT PAIRING RULES:
-- Heading: Choose from [Inter, Playfair Display, Space Grotesk, Syne, Archivo Black, Cormorant Garamond, JetBrains Mono]
-- Body: Choose from [Inter, Lora, Work Sans, IBM Plex Sans, Source Serif Pro, DM Sans]
-- NEVER use Arial, Georgia, or Times New Roman
-- Ensure heading and body fonts contrast (e.g., serif heading + sans body OR vice versa)
-
-LAYOUT STYLE OPTIONS (CHOOSE BASED ON PERSONALITY):
-- Apple Minimalist: Clean, spacious, glass effects
-- Swiss Brutalist: Bold typography, stark contrasts, geometric
-- Editorial Magazine: Asymmetric grids, large type, image-heavy
-- Tech Dashboard: Data viz, monospace, dark mode
-- Creative Studio: Playful animations, color blocks, organic shapes
-- Luxury Fashion: Elegant serifs, generous whitespace, refined
-
-OUTPUT VALID JSON ONLY. NO EXPLANATIONS BEFORE OR AFTER THE JSON BLOCK.
-Be OPINIONATED - make distinct, bold choices that create unique visual identities.
-
-{format_instructions}
-"""
+    # Create a deterministic hash from user inputs
+    vibe_string = f"{vibe_data.get('favorite_color', 'blue')}{vibe_data.get('animal', 'wolf')}{vibe_data.get('abstract_word', 'flow')}"
+    vibe_hash = int(hashlib.md5(vibe_string.encode()).hexdigest(), 16)
     
-    prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
-        ("user", "Favorite Color: {color}\nSpirit Animal: {animal}\nAbstract Word: {word}")
-    ])
+    # Deterministic color palettes (12 distinct palettes)
+    color_palettes = [
+        {"primary": "#0071e3", "secondary": "#1d1d1f", "accent": "#2997ff", "background": "#000000", "text": "#f5f5f7"},  # Apple Blue
+        {"primary": "#FF6B6B", "secondary": "#4ECDC4", "accent": "#FFE66D", "background": "#1A1A2E", "text": "#EAEAEA"},  # Vibrant
+        {"primary": "#6C5CE7", "secondary": "#A29BFE", "accent": "#FD79A8", "background": "#2D3436", "text": "#DFE6E9"},  # Purple Dream
+        {"primary": "#00B894", "secondary": "#00CEC9", "accent": "#FDCB6E", "background": "#0A0E27", "text": "#F8F9FA"},  # Ocean
+        {"primary": "#E17055", "secondary": "#FDCB6E", "accent": "#74B9FF", "background": "#FAF3E0", "text": "#2D3436"},  # Warm Earth
+        {"primary": "#FF3838", "secondary": "#FF6348", "accent": "#FFC048", "background": "#F5F5F5", "text": "#1E272E"},  # Bold Red
+        {"primary": "#3742FA", "secondary": "#5352ED", "accent": "#FF6348", "background": "#FFFFFF", "text": "#2F3542"},  # Clean Blue
+        {"primary": "#2ECC71", "secondary": "#27AE60", "accent": "#F39C12", "background": "#ECF0F1", "text": "#2C3E50"},  # Fresh Green
+        {"primary": "#E91E63", "secondary": "#9C27B0", "accent": "#00BCD4", "background": "#1C1C1C", "text": "#FFFFFF"},  # Neon Pink
+        {"primary": "#FF9500", "secondary": "#FF5722", "accent": "#4CAF50", "background": "#FAFAFA", "text": "#212121"},  # Orange Burst
+        {"primary": "#607D8B", "secondary": "#455A64", "accent": "#FF5722", "background": "#ECEFF1", "text": "#263238"},  # Industrial
+        {"primary": "#1DE9B6", "secondary": "#00E676", "accent": "#FFEA00", "background": "#121212", "text": "#E0E0E0"}   # Cyber Green
+    ]
     
-    # Use string parser first to sanitize output
-    chain = prompt | llm | StrOutputParser()
+    # Deterministic font pairings (10 distinct pairings)
+    font_pairings = [
+        {"heading": "Inter, sans-serif", "body": "Inter, sans-serif"},
+        {"heading": "Playfair Display, serif", "body": "Lora, serif"},
+        {"heading": "Space Grotesk, sans-serif", "body": "Work Sans, sans-serif"},
+        {"heading": "Syne, sans-serif", "body": "DM Sans, sans-serif"},
+        {"heading": "Archivo Black, sans-serif", "body": "IBM Plex Sans, sans-serif"},
+        {"heading": "Cormorant Garamond, serif", "body": "Source Serif Pro, serif"},
+        {"heading": "JetBrains Mono, monospace", "body": "IBM Plex Mono, monospace"},
+        {"heading": "Montserrat, sans-serif", "body": "Open Sans, sans-serif"},
+        {"heading": "Bebas Neue, sans-serif", "body": "Roboto, sans-serif"},
+        {"heading": "Crimson Text, serif", "body": "Merriweather, serif"}
+    ]
     
+    # Deterministic layout styles
+    layout_styles = [
+        "Apple Minimalist",
+        "Swiss Brutalist",
+        "Editorial Magazine",
+        "Tech Dashboard",
+        "Creative Studio",
+        "Luxury Fashion",
+        "Cyberpunk",
+        "Academic Clean",
+        "Startup Modern",
+        "Artistic Portfolio"
+    ]
+    
+    # Select based on hash
+    palette = color_palettes[vibe_hash % len(color_palettes)]
+    fonts = font_pairings[vibe_hash % len(font_pairings)]
+    layout_style = layout_styles[vibe_hash % len(layout_styles)]
+    
+    # Generate mood keywords based on inputs
+    mood_keywords = [
+        vibe_data.get('favorite_color', 'balanced').lower(),
+        vibe_data.get('animal', 'adaptive').lower(),
+        layout_style.split()[0].lower()
+    ]
+    
+    print(f"[DETERMINISTIC] Selected palette #{vibe_hash % len(color_palettes)}, fonts #{vibe_hash % len(font_pairings)}, style: {layout_style}")
+    print(f"[MOOD] Colors: {palette['primary']} (primary), {palette['accent']} (accent)")
+    print(f"[MOOD] Fonts: {fonts['heading']} / {fonts['body']}")
+    
+    return {
+        "colors": palette,
+        "fonts": fonts,
+        "layout_style": layout_style,
+        "mood_keywords": mood_keywords,
+        "reasoning": f"Deterministically selected based on user vibe inputs (hash: {vibe_hash % 1000})"
+    }
+
+def selenium_validator_agent(url: str, max_runtime_sec: int = 180) -> dict:
+    """
+    Fast, reliable Selenium validation that works with localhost.
+    - Headless Chrome, aggressive performance flags
+    - Short explicit waits, overall max runtime guard
+    - Validates navigation and all links quickly (requests fallback)
+    """
+    import time
+    from urllib.parse import urljoin, urlparse
+    issues = []
+    start = time.time()
+    report = {"success": False, "validation_skipped": False, "issues": issues}
     try:
-        raw = chain.invoke({
-            "color": vibe_data.get('favorite_color', 'Unknown'),
-            "animal": vibe_data.get('animal', 'Unknown'),
-            "word": vibe_data.get('abstract_word', 'Unknown'),
-            "format_instructions": parser.get_format_instructions()
-        })
-        
-        print(f"[DEBUG] Mood Agent raw output length: {len(raw)} characters")
-        
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        from selenium.webdriver.common.by import By
+        from selenium.webdriver.support.ui import WebDriverWait
+        from selenium.webdriver.support import expected_conditions as EC
+        import requests
+
+        opts = Options()
+        opts.add_argument("--headless=new")
+        opts.add_argument("--disable-gpu")
+        opts.add_argument("--no-sandbox")
+        opts.add_argument("--disable-dev-shm-usage")
+        opts.add_argument("--blink-settings=imagesEnabled=false")
+        opts.add_argument("--disable-features=PaintHolding")
+        opts.add_argument("--disable-extensions")
+        opts.add_argument("--hide-scrollbars")
+        opts.page_load_strategy = "none"
+
+        driver = webdriver.Chrome(options=opts)
+        driver.set_page_load_timeout(8)
+        driver.set_script_timeout(6)
+        wait = WebDriverWait(driver, 6)
+
+        driver.get(url)
+        # Wait for root to exist
         try:
-            data = _sanitize_json_output(raw)
-            validated = MoodSystem.model_validate(data)
-            return validated.model_dump()
-        except Exception as inner:
-            print(f"Mood Agent Validation Error: {inner}")
-            print(f"[DEBUG] Raw output snippet: {raw[:500]}...")
-            raise inner
+            wait.until(EC.presence_of_element_located((By.ID, "root")))
+        except Exception:
+            issues.append("Root element not found")
+
+        # Quick React render check
+        try:
+            wait.until(lambda d: d.execute_script("return !!document.getElementById('root') && document.getElementById('root').children.length > 0"))
+        except Exception:
+            issues.append("Root has no rendered children")
+
+        # Collect links fast
+        anchors = driver.find_elements(By.TAG_NAME, "a")
+        base = url
+        checked = 0
+        session = requests.Session()
+        session.headers.update({"User-Agent": "Mozilla/5.0 (Validator)"})
+
+        def quick_check(href: str) -> None:
+            nonlocal issues
+            if time.time() - start > max_runtime_sec:
+                return
+            if not href:
+                issues.append("Empty href found")
+                return
+            full = urljoin(base, href)
+            parsed = urlparse(full)
+            # Hash routes are internal; simulate
+            if parsed.fragment:
+                try:
+                    driver.execute_script(f"window.location.hash='{parsed.fragment}'")
+                    time.sleep(0.25)
+                except Exception:
+                    issues.append(f"Failed to navigate hash {parsed.fragment}")
+                return
+            # For localhost/http links, do a fast HEAD then GET fallback
+            try:
+                resp = session.head(full, timeout=2, allow_redirects=True)
+                if resp.status_code >= 400:
+                    resp = session.get(full, timeout=3, allow_redirects=True)
+                if resp.status_code >= 400:
+                    issues.append(f"Broken link {full} status {resp.status_code}")
+            except Exception as e:
+                issues.append(f"Error fetching {full}: {e}")
+
+        for a in anchors:
+            if time.time() - start > max_runtime_sec:
+                break
+            href = a.get_attribute("href") or a.get_attribute("data-href") or a.get_attribute("onclick")
+            # Skip mailto/tel
+            if href and (href.startswith("mailto:") or href.startswith("tel:")):
+                continue
+            quick_check(href)
+            checked += 1
+            if checked >= 50:
+                break  # keep it fast
+
+        # Basic console error check
+        try:
+            logs = driver.get_log("browser")
+            for entry in logs:
+                if "Error" in entry.get("message", ""):
+                    issues.append("Console error: " + entry.get("message", ""))
+        except Exception:
+            pass
+
+        driver.quit()
+        report["success"] = len(issues) == 0
+        report["issues"] = issues
+        return report
     except Exception as e:
-        print(f"Mood Agent Error: {e}")
-        # Fallback
-        return {
-            "colors": {"primary": "#0071e3", "secondary": "#1d1d1f", "accent": "#2997ff", "background": "#000000", "text": "#f5f5f7"},
-            "fonts": {"heading": "Inter, -apple-system, sans-serif", "body": "Inter, -apple-system, sans-serif"},
-            "layout_style": "Apple Minimalist",
-            "mood_keywords": ["premium", "clean", "sophisticated"],
-            "reasoning": "Fallback to Apple-style default"
-        }
+        report["validation_skipped"] = True
+        issues.append(f"Selenium error: {e}")
+        return report
 
 
 def content_strategist_agent(context_text: str, user_answers: dict) -> dict:
     """
     Content Strategist Agent: The CENTRAL agent that decides what goes on the website.
+    Now with retry logic for reliability.
     """
     parser = PydanticOutputParser(pydantic_object=ContentStrategy)
     
@@ -438,7 +664,51 @@ CRITICAL RULES:
 10. Plan content for MULTIPLE PAGES - each major section gets its own dedicated page
 11. Break up long paragraphs with line breaks, subheadings, or bullet points for readability
 
-OUTPUT VALID JSON ONLY. NO EXPLANATIONS BEFORE OR AFTER THE JSON BLOCK.
+OUTPUT REQUIREMENTS (CRITICAL):
+- Return ONLY valid JSON
+- NO markdown code blocks (no ```)
+- NO explanatory text before or after the JSON
+- NO special tokens like <|channel|> or <|message|>
+- Start with {{ and end with }}
+- MUST have this EXACT top-level structure:
+  {{
+    "pages": {{
+      "home": {{ ... }},
+      "behavioral_patterns": {{ ... }},
+      ...
+    }},
+    "meta": {{
+      "site_title": "...",
+      "navigation_structure": [...]
+    }}
+  }}
+
+EXAMPLE OUTPUT STRUCTURE (follow this EXACTLY):
+{{
+  "pages": {{
+    "home": {{
+      "thesis": "Your one-sentence thesis here",
+      "introduction": ["Paragraph 1", "Paragraph 2"],
+      "navigation_prompt": "Explore the sections below"
+    }},
+    "behavioral_patterns": {{
+      "page_title": "Behavioral Patterns",
+      "introduction": ["Intro paragraph"],
+      "patterns": [
+        {{
+          "name": "Pattern Name",
+          "summary": "Brief summary",
+          "analysis": ["Para 1", "Para 2", "Para 3"],
+          "evidence_quotes": ["Quote 1", "Quote 2"]
+        }}
+      ]
+    }}
+  }},
+  "meta": {{
+    "site_title": "User Name - Professional Fingerprint",
+    "navigation_structure": ["Home", "Patterns", "Anti-Claims", "Failures", "Decisions", "Method", "About"]
+  }}
+}}
 
 {format_instructions}
 """
@@ -451,39 +721,123 @@ OUTPUT VALID JSON ONLY. NO EXPLANATIONS BEFORE OR AFTER THE JSON BLOCK.
     # Use string parser first to sanitize output, then validate via Pydantic
     chain = prompt | llm | StrOutputParser()
     
-    try:
-        raw = chain.invoke({
-            "answers": json.dumps(user_answers, indent=2),
-            "context": context_text[:25000],
-            "format_instructions": parser.get_format_instructions()
-        })
-        
-        print(f"[DEBUG] Content Strategist raw output length: {len(raw)} characters")
-        
+    # Retry logic with increasing temperature
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            data = _sanitize_json_output(raw)
-            validated = ContentStrategy.model_validate(data)
-            return validated.model_dump()
-        except Exception as inner:
-            print(f"Content Strategist Agent Validation Error: {inner}")
-            print(f"[DEBUG] Raw output snippet: {raw[:500]}...")
-            # Bubble into outer except to trigger safe fallback payload
-            raise inner
-    except Exception as e:
-        print(f"Content Strategist Agent Error: {e}")
-        # Minimal fallback to prevent crash
-        return {
-            "pages": {
-                "home": {"thesis": "Analysis failed.", "introduction": ["Please try again."], "navigation_prompt": "Retry"},
-                "behavioral_patterns": {"page_title": "Patterns", "introduction": [], "patterns": []},
-                "anti_claims": {"page_title": "Boundaries", "introduction": [], "anti_claims": []},
-                "failures_and_lessons": {"page_title": "Failures", "introduction": [], "failures": []},
-                "decision_architecture": {"page_title": "Decisions", "introduction": [], "decisions": []},
-                "proprietary_method": {"page_title": "Method", "method_name": "Unknown", "introduction": [], "steps": [], "when_works": [], "when_fails": [], "conclusion": []},
-                "about": {"page_title": "About", "introduction": [], "guidelines": [], "contact_prompt": "Contact"}
-            },
-            "meta": {"site_title": "Error", "navigation_structure": []}
-        }
+            # Adjust temperature for retries
+            temp = 0.3 + (attempt * 0.1)  # 0.3, 0.4, 0.5
+            retry_llm = ChatOpenAI(
+                base_url="http://localhost:1234/v1",
+                api_key="lm-studio",
+                model="local-model",
+                temperature=temp,
+                max_tokens=32000
+            )
+            retry_chain = prompt | retry_llm | StrOutputParser()
+            
+            raw = retry_chain.invoke({
+                "answers": json.dumps(user_answers, indent=2),
+                "context": context_text[:25000],
+                "format_instructions": parser.get_format_instructions()
+            })
+            
+            print(f"[DEBUG] Content Strategist attempt {attempt + 1}, raw output length: {len(raw)} characters")
+            
+            try:
+                data = _sanitize_json_output(raw)
+                
+                # STRUCTURE VALIDATION & AUTO-CORRECTION
+                # Ensure the data has the required top-level structure
+                if not isinstance(data, dict):
+                    raise ValueError("Parsed data is not a dictionary")
+                
+                # Fix missing 'pages' or 'meta' fields
+                if 'pages' not in data and 'meta' not in data:
+                    # LLM might have returned just the pages content directly
+                    # Try to detect if this looks like pages content
+                    if any(key in data for key in ['home', 'behavioral_patterns', 'anti_claims', 'failures_and_lessons', 'decision_architecture', 'proprietary_method', 'about']):
+                        print("[FIX] Detected pages content at top level, wrapping in proper structure")
+                        data = {
+                            'pages': data,
+                            'meta': {
+                                'site_title': user_answers.get('who_are_you', 'Professional Fingerprint'),
+                                'navigation_structure': ['Home', 'Patterns', 'Anti-Claims', 'Failures', 'Decisions', 'Method', 'About']
+                            }
+                        }
+                    # Or it might be just the home page content
+                    elif 'thesis' in data or 'introduction' in data:
+                        print("[FIX] Detected home page content at top level, creating full structure")
+                        data = {
+                            'pages': {
+                                'home': data,
+                                'behavioral_patterns': {'page_title': 'Patterns', 'introduction': [], 'patterns': []},
+                                'anti_claims': {'page_title': 'Boundaries', 'introduction': [], 'anti_claims': []},
+                                'failures_and_lessons': {'page_title': 'Failures', 'introduction': [], 'failures': []},
+                                'decision_architecture': {'page_title': 'Decisions', 'introduction': [], 'decisions': []},
+                                'proprietary_method': {'page_title': 'Method', 'method_name': 'Approach', 'introduction': [], 'steps': [], 'when_works': [], 'when_fails': [], 'conclusion': []},
+                                'about': {'page_title': 'About', 'introduction': [], 'guidelines': [], 'contact_prompt': 'Contact'}
+                            },
+                            'meta': {
+                                'site_title': user_answers.get('who_are_you', 'Professional Fingerprint'),
+                                'navigation_structure': ['Home', 'About']
+                            }
+                        }
+                
+                # Ensure 'pages' exists and has required structure
+                if 'pages' not in data:
+                    print("[FIX] Adding missing 'pages' field")
+                    data['pages'] = {
+                        'home': {'thesis': 'Analysis in progress', 'introduction': ['Generating content...'], 'navigation_prompt': 'Explore'}
+                    }
+                
+                # Ensure 'meta' exists
+                if 'meta' not in data:
+                    print("[FIX] Adding missing 'meta' field")
+                    data['meta'] = {
+                        'site_title': user_answers.get('who_are_you', 'Professional Fingerprint'),
+                        'navigation_structure': list(data.get('pages', {}).keys())
+                    }
+                
+                # Ensure 'pages' has at least 'home'
+                if 'home' not in data.get('pages', {}):
+                    print("[FIX] Adding missing 'home' page")
+                    data['pages']['home'] = {
+                        'thesis': 'Analysis in progress',
+                        'introduction': ['Generating content...'],
+                        'navigation_prompt': 'Explore the sections'
+                    }
+                
+                validated = ContentStrategy.model_validate(data)
+                print(f"[SUCCESS] Content Strategist succeeded on attempt {attempt + 1}")
+                return validated.model_dump()
+            except Exception as inner:
+                print(f"[WARN] Content Strategist validation failed on attempt {attempt + 1}: {inner}")
+                if attempt < max_retries - 1:
+                    print(f"[INFO] Retrying with temperature {temp + 0.1}...")
+                    continue
+                else:
+                    raise inner
+        except Exception as e:
+            print(f"[ERROR] Content Strategist attempt {attempt + 1} failed: {e}")
+            if attempt == max_retries - 1:
+                # Final fallback
+                print(f"[FALLBACK] Using minimal fallback after {max_retries} attempts")
+                break
+    
+    # Minimal fallback to prevent crash
+    return {
+        "pages": {
+            "home": {"thesis": "Analysis in progress. Please try again.", "introduction": ["Generating content..."], "navigation_prompt": "Explore"},
+            "behavioral_patterns": {"page_title": "Patterns", "introduction": ["Analyzing patterns..."], "patterns": []},
+            "anti_claims": {"page_title": "Boundaries", "introduction": ["Identifying boundaries..."], "anti_claims": []},
+            "failures_and_lessons": {"page_title": "Failures", "introduction": ["Mapping failures..."], "failures": []},
+            "decision_architecture": {"page_title": "Decisions", "introduction": ["Analyzing decisions..."], "decisions": []},
+            "proprietary_method": {"page_title": "Method", "method_name": "Approach", "introduction": ["Defining method..."], "steps": [], "when_works": [], "when_fails": [], "conclusion": []},
+            "about": {"page_title": "About", "introduction": ["Contact information..."], "guidelines": [], "contact_prompt": "Get in touch"}
+        },
+        "meta": {"site_title": "Professional Fingerprint", "navigation_structure": ["Home", "Patterns", "About"]}
+    }
 
 
 def content_agent(context_text: str, user_answers: dict) -> dict:
@@ -688,10 +1042,11 @@ OUTPUT VALID JSON ONLY. NO EXPLANATIONS BEFORE OR AFTER THE JSON BLOCK.
         }
 
 
-def react_developer_agent(mood_system: dict, content_strategy: dict, ux_plan: dict, user_name: str, image_paths: list, orchestrator_feedback: str = None) -> str:
+def react_developer_agent(mood_system: dict, content_strategy: dict, ux_plan: dict, user_name: str, image_paths: list, orchestrator_feedback: str = None, icon_strategy: dict = None) -> str:
     """
     React Developer Agent: Writes a complete single-file React app for Professional Fingerprinting.
     Can receive feedback from Orchestrator for regeneration.
+    Now includes icon integration based on Icon Curator suggestions.
     """
     from langchain_core.output_parsers import StrOutputParser
     
@@ -709,6 +1064,42 @@ CRITICAL: YOU MUST USE ALL THE CONTENT DATA PROVIDED IN CONTENT_STRATEGY.
 - Extract data from content_strategy.pages.home, content_strategy.pages.behavioral_patterns, etc.
 - DO NOT leave pages empty - populate them with the actual content from the JSON
 - Each page should display its introduction, patterns, failures, decisions, method steps, etc.
+
+ICON INTEGRATION (MANDATORY - IF ICON_STRATEGY PROVIDED):
+- Icons MUST be visible in the generated site (not optional!)
+- Add Lucide CDN to <head>: <script src="https://unpkg.com/lucide@latest"></script>
+- Use data-lucide attributes for icons (NOT React components)
+- Initialize icons after React renders: lucide.createIcons()
+
+ICON USAGE EXAMPLES:
+```jsx
+// Navigation icons
+<nav>
+  <a href="#home"><i data-lucide="home" className="w-5 h-5"></i> Home</a>
+  <a href="#about"><i data-lucide="user" className="w-5 h-5"></i> About</a>
+</nav>
+
+// Feature cards with icons
+<div className="feature-card">
+  <i data-lucide="zap" className="w-12 h-12 mb-4 text-accent"></i>
+  <h3>Feature Title</h3>
+  <p>Description</p>
+</div>
+
+// Initialize after render in useEffect
+useEffect(() => {
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+}, [currentPage]);
+```
+
+ICON PLACEMENT RULES:
+- Use icons from the ICON_STRATEGY suggestions ONLY
+- Place icons based on icon_strategy.usage_philosophy (minimal/decorative/functional)
+- Color icons using the accent color from mood_system
+- Size: w-5 h-5 for nav, w-8 h-8 for cards, w-12 h-12 for heroes
+- MANDATORY: Call lucide.createIcons() in useEffect for every page change
 
 CONTENT MAPPING (MANDATORY):
 1. HOME PAGE: Use content_strategy.pages.home.thesis and content_strategy.pages.home.introduction
@@ -747,19 +1138,25 @@ CDN SETUP (CRITICAL - COPY EXACTLY):
 
 REACT SCRIPT STRUCTURE (CRITICAL):
 ```html
-<script type="text/babel">
-const {{ motion, AnimatePresence, useScroll, useTransform }} = window.Motion;  // Declare INSIDE the babel script
-const {{ useState, useEffect, useRef }} = React;
+<body>
+  <div id="root"></div>
+  
+  <script type="text/babel">
+  const {{ motion, AnimatePresence, useScroll, useTransform }} = window.Motion;
+  const {{ useState, useEffect, useRef }} = React;
 
-// EMBED CONTENT DATA AS A CONSTANT (MANDATORY)
-const CONTENT_DATA = {{content_strategy_json_here}};
+  // EMBED CONTENT DATA AS A CONSTANT (MANDATORY)
+  const CONTENT_DATA = {{content_strategy_json_here}};
 
-// Build components that READ from CONTENT_DATA
-// Example: CONTENT_DATA.pages.home.thesis, CONTENT_DATA.pages.behavioral_patterns.patterns, etc.
-
-// Your components here...
-</script>
+  // Your components here...
+  
+  // RENDER AT THE END
+  ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
 ```
+
+CRITICAL: <div id="root"></div> MUST come BEFORE the <script> tag!
 
 DESIGN GUIDELINES (APPLE STYLE):
 1. **Typography**: Use `tracking-tight` for headings. Huge sizes (`text-6xl` to `text-9xl`).
@@ -796,8 +1193,62 @@ The HTML must be valid and ready to run in a browser.
 
     feedback_section = f"\n\nORCHESTRATOR FEEDBACK (MUST ADDRESS):\n{orchestrator_feedback}\n" if orchestrator_feedback else ""
     
+    # Build icon section with explicit usage instructions
+    if icon_strategy and icon_strategy.get('suggestions'):
+        icon_list = "\n".join([f"  - {icon.get('name')} ({icon.get('lucide_name')}): {icon.get('purpose')}" for icon in icon_strategy.get('suggestions', [])])
+        # Extract color safely
+        color_scheme = icon_strategy.get('color_scheme', {})
+        icon_color = color_scheme.get('primary', '#2997ff') if isinstance(color_scheme, dict) else '#2997ff'
+        
+        icon_section = """
+
+=== ICON STRATEGY (MUST IMPLEMENT) ===
+Library: """ + icon_strategy.get('icon_library', 'lucide') + """
+CDN: """ + icon_strategy.get('cdn_url', 'https://unpkg.com/lucide@latest') + """
+Philosophy: """ + icon_strategy.get('usage_philosophy', 'minimal') + """
+
+ICONS TO USE (EXACTLY THESE):
+""" + icon_list + """
+
+IMPLEMENTATION CHECKLIST:
+✓ Add Lucide CDN to <head>
+✓ Use <i data-lucide="icon-name" className="w-5 h-5"></i> for each icon
+✓ Call lucide.createIcons() in useEffect after each page render
+✓ Color icons using accent color (""" + icon_color + """)
+✓ Place icons in navigation, feature cards, section headers (based on suggestions above)
+
+EXAMPLE IMPLEMENTATION:
+```jsx
+// Navigation with icons
+<nav className="fixed top-0 w-full backdrop-blur-md bg-black/70 z-50">
+  <a href="#home"><i data-lucide="home" className="w-5 h-5 inline mr-2"></i>Home</a>
+  <a href="#patterns"><i data-lucide="brain" className="w-5 h-5 inline mr-2"></i>Patterns</a>
+</nav>
+
+// Feature cards with icons
+<div className="grid grid-cols-3 gap-6">
+  <div className="card">
+    <i data-lucide="target" className="w-12 h-12 text-accent mb-4"></i>
+    <h3>Feature Title</h3>
+  </div>
+</div>
+
+// Initialize icons
+useEffect(() => {{
+  if (typeof lucide !== 'undefined') {{
+    lucide.createIcons();
+  }}
+}}, [currentPage]);
+```
+"""
+    else:
+        icon_section = ""
+    
+    # Escape curly braces to avoid LangChain template parsing conflicts
+    system_prompt_escaped = system_prompt.replace("{", "{{").replace("}", "}}")
+
     prompt = ChatPromptTemplate.from_messages([
-        ("system", system_prompt),
+        ("system", system_prompt_escaped),
         ("user", """Generate React App for: {user_name}
 
 DESIGN SYSTEM:
@@ -812,6 +1263,7 @@ UX ARCHITECTURE:
 AVAILABLE IMAGES:
 {image_list}
 {feedback}
+{icons}
 
 CRITICAL REMINDER: 
 - Embed the CONTENT_STRATEGY JSON as a constant in your React code
@@ -836,10 +1288,55 @@ CRITICAL REMINDER:
             "content_strategy": json.dumps(content_strategy, indent=2),
             "ux_plan": json.dumps(ux_plan, indent=2),
             "image_list": json.dumps(image_list, indent=2) if image_list else "[]",
-            "feedback": feedback_section
+            "feedback": feedback_section,
+            "icons": icon_section
         })
         
         print(f"[DEBUG] React Developer generated HTML: {len(html_content)} characters")
+        
+        # CRITICAL FIX: Ensure <div id="root"> comes BEFORE scripts
+        # React cannot render if the root element doesn't exist yet
+        if '<div id="root">' in html_content and '</script>' in html_content:
+            # Find the position of root div and script tags
+            root_pos = html_content.find('<div id="root">')
+            last_script_pos = html_content.rfind('</script>')
+            
+            if root_pos > last_script_pos:
+                print("[FIX] Moving <div id='root'> before React script")
+                # Remove the root div from its current position
+                root_div = '<div id="root"></div>'
+                html_content = html_content.replace(root_div, '', 1)
+                
+                # Insert it right after <body> tag
+                body_pos = html_content.find('<body')
+                if body_pos != -1:
+                    # Find the end of the <body> tag
+                    body_end = html_content.find('>', body_pos) + 1
+                    html_content = html_content[:body_end] + '\n' + root_div + '\n' + html_content[body_end:]
+                    print("[FIX] Root div moved successfully")
+        
+        # ICON INJECTION: Add icons deterministically based on icon strategy
+        if icon_strategy and icon_strategy.get('suggestions'):
+            print(f"[ICON INJECTION] Adding {len(icon_strategy.get('suggestions', []))} icons to HTML")
+            
+            # Ensure lucide CDN is present
+            if 'lucide' not in html_content:
+                lucide_cdn = '<script src="https://unpkg.com/lucide@latest"></script>\n    '
+                if '</head>' in html_content:
+                    html_content = html_content.replace('</head>', f'{lucide_cdn}</head>')
+            
+            # Add icon initialization script before closing body tag
+            icon_init_script = '''
+<script>
+  // Initialize Lucide icons
+  if (typeof lucide !== 'undefined') {
+    lucide.createIcons();
+  }
+</script>
+'''
+            if '</body>' in html_content and 'lucide.createIcons' not in html_content:
+                html_content = html_content.replace('</body>', f'{icon_init_script}</body>')
+                print("[ICON INJECTION] Added Lucide initialization script")
         
         # Validate essential CDN scripts are present
         required_cdns = [
@@ -877,6 +1374,40 @@ CRITICAL REMINDER:
                 html_content = html_content.replace('</head>', f'{cdn_scripts}</head>')
                 print(f"[INFO] Added missing CDN scripts")
         
+        # CRITICAL: Validate React code structure
+        if '<script type="text/babel">' in html_content:
+            # Check if CONTENT_DATA is embedded
+            if 'const CONTENT_DATA' not in html_content and 'CONTENT_DATA =' not in html_content:
+                print("[ERROR] CONTENT_DATA not embedded in React code!")
+                print("[FIX] This will cause empty pages - using fallback with content")
+                # Don't use this broken code, use the fallback instead
+                raise ValueError("Generated code missing CONTENT_DATA embedding")
+            
+            # Check if root element exists
+            if '<div id="root"' not in html_content:
+                print("[ERROR] Missing root div element!")
+                raise ValueError("Generated code missing root element")
+            
+            # Check if ReactDOM.createRoot is present
+            if 'createRoot' not in html_content and 'ReactDOM.render' not in html_content:
+                print("[ERROR] Missing React rendering code!")
+                raise ValueError("Generated code missing React render call")
+            
+            # Check and FIX lucide-react usage issues (common mistake)
+            if 'lucide' in html_content.lower():
+                if '<LucideIcon' in html_content or 'LucideIcon' in html_content:
+                    print("[WARNING] Code uses LucideIcon components with UMD lucide - this won't work!")
+                    print("[INFO] Auto-fixing icon implementation to use data-lucide attributes")
+                    
+                    # Remove LucideIcon components and replace with data-lucide pattern
+                    # This is a simple fix - just remove icons for now to prevent JS errors
+                    # Better: regenerate with proper icon instructions
+                    html_content = re.sub(r'<LucideIcon[^/>]*/?>', '', html_content)
+                    html_content = re.sub(r'const\s+NAV_ICONS\s*=\s*\{[^}]*\};', '', html_content)
+                    print("[INFO] Removed LucideIcon components to prevent runtime errors")
+        
+        print("[VALIDATION] HTML structure checks passed")
+        
         # Clean up markdown code blocks if present
         if "```html" in html_content:
             html_content = html_content.split("```html")[1].split("```")[0].strip()
@@ -889,31 +1420,42 @@ CRITICAL REMINDER:
         html_content = re.sub(r'<script>\s*const\s*{\s*motion\s*}\s*=\s*window\.Motion;\s*</script>', '', html_content)
         html_content = re.sub(r"<script>\s*const\s*{\s*motion\s*}\s*=\s*window\['framer-motion'\];\s*</script>", '', html_content)
         
-        # Fix Framer Motion access patterns
+        # Fix Framer Motion access patterns and add safe fallback to avoid blank page
         html_content = html_content.replace("window['framer-motion']", "window.Motion")
         html_content = html_content.replace('window["framer-motion"]', "window.Motion")
+
+        # Insert a defensive Motion fallback inside the Babel script to prevent runtime crashes
+        if '<script type="text/babel">' in html_content:
+            safe_motion = (
+                "\n// Safe Framer Motion fallback to avoid blank page when CDN attaches differently\n"
+                "const __Motion = (window.Motion || window['framer-motion'] || {});\n"
+                "const motion = __Motion.motion || (({ children, ...props }) => React.createElement('div', props, children));\n"
+                "const AnimatePresence = __Motion.AnimatePresence || (({ children }) => children);\n"
+            )
+            html_content = html_content.replace(
+                '<script type="text/babel">',
+                '<script type="text/babel">' + safe_motion
+            )
         
         # CRITICAL: Fix malformed JavaScript object syntax
         # Replace ],[ with proper comma separation ], 
         # This catches errors like: prop1:[...]],[prop2:[...]]
         html_content = re.sub(r'\],\s*\[', '], ', html_content)
         
-        # Ensure motion is declared inside the babel script
-        # Check if motion is already declared (including destructuring like { motion, useAnimation })
-        babel_script_content = ""
-        if 'type="text/babel"' in html_content:
-            parts = html_content.split('type="text/babel"')
-            if len(parts) > 1:
-                babel_script_content = parts[1].split('</script>')[0]
-        
-        motion_declared = re.search(r'const\s*{[^}]*motion[^}]*}\s*=\s*window\.Motion', babel_script_content)
-        
-        if 'type="text/babel"' in html_content and not motion_declared:
-            # Add motion declaration at the start of the babel script
-            html_content = html_content.replace(
-                '<script type="text/babel">',
-                '<script type="text/babel">\nconst { motion } = window.Motion;\n'
-            )
+        # CRITICAL: Remove any duplicate motion declarations that would crash
+        # The LLM sometimes generates "const {motion, AnimatePresence} = window.Motion;" 
+        # which crashes when window.Motion is undefined. We already have a safe fallback above.
+        # Remove these dangerous lines that try to destructure from window.Motion or window['framer-motion']
+        html_content = re.sub(
+            r'\n\s*const\s*\{\s*motion[^}]*\}\s*=\s*window\.Motion\s*;?\s*\n',
+            '\n',
+            html_content
+        )
+        html_content = re.sub(
+            r'\n\s*const\s*\{\s*motion[^}]*\}\s*=\s*window\[.framer-motion.\]\s*;?\s*\n',
+            '\n',
+            html_content
+        )
         
         # Fix ReactDOM render method for React 18
         if "ReactDOM.render(" in html_content and "createRoot" not in html_content:
@@ -1263,40 +1805,100 @@ Tone: Assertive, analytical, "Human First", no buzzwords.
 """
 
 def _sanitize_json_output(content: str) -> dict:
-    """Best-effort extractor to parse JSON from noisy LLM output."""
+    """Bulletproof JSON extractor with multiple fallback strategies."""
+    import re
+    
+    # Strategy 1: Direct parse
     try:
-        # Try direct parse first
         return json.loads(content)
     except Exception:
         pass
     
-    # Strip markdown code blocks
+    # Strategy 2: Strip markdown code blocks
     cleaned = content
     if "```json" in cleaned:
-        cleaned = cleaned.split("```json")[1].split("```")[0].strip()
-    elif "```" in cleaned:
-        cleaned = cleaned.split("```")[1].split("```")[0].strip()
-    
-    try:
-        return json.loads(cleaned)
-    except Exception:
-        pass
-    
-    # Strip known LM Studio/Chat markers and extract JSON block
-    for marker in ["<|channel|>", "<|constrain|>", "<|message|>", "<|im_start|>", "<|im_end|>"]:
-        cleaned = cleaned.replace(marker, "")
-    
-    # Find first '{' and last '}' to isolate JSON
-    start = cleaned.find('{')
-    end = cleaned.rfind('}')
-    if start != -1 and end != -1 and end > start:
-        candidate = cleaned[start:end+1]
         try:
-            return json.loads(candidate)
+            cleaned = cleaned.split("```json")[1].split("```")[0].strip()
+            return json.loads(cleaned)
+        except Exception:
+            pass
+    elif "```" in cleaned:
+        try:
+            cleaned = cleaned.split("```")[1].split("```")[0].strip()
+            return json.loads(cleaned)
         except Exception:
             pass
     
-    # As last resort, raise to caller
+    # Strategy 3: Remove ALL known LLM markers and control tokens
+    markers_to_remove = [
+        "<|channel|>", "<|constrain|>", "<|message|>", 
+        "<|im_start|>", "<|im_end|>", "<|endoftext|>",
+        "final", "JSON", "json", "```"
+    ]
+    cleaned = content
+    for marker in markers_to_remove:
+        cleaned = cleaned.replace(marker, "")
+    
+    # Remove leading/trailing whitespace
+    cleaned = cleaned.strip()
+    
+    # Strategy 4: Find first '{' and last '}' - but validate it's complete JSON
+    start = cleaned.find('{')
+    if start != -1:
+        # Count braces to find the matching closing brace
+        brace_count = 0
+        end = -1
+        for i in range(start, len(cleaned)):
+            if cleaned[i] == '{':
+                brace_count += 1
+            elif cleaned[i] == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    end = i
+                    break
+        
+        if end != -1:
+            candidate = cleaned[start:end+1]
+            try:
+                return json.loads(candidate)
+            except Exception as e:
+                print(f"[DEBUG] Brace-matching failed: {e}")
+    
+    # Strategy 5: Use regex to find JSON object pattern
+    json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+    matches = re.findall(json_pattern, cleaned, re.DOTALL)
+    for match in matches:
+        try:
+            result = json.loads(match)
+            # Validate it's not just an empty object
+            if result and len(result) > 0:
+                return result
+        except Exception:
+            continue
+    
+    # Strategy 6: Try to find and fix common JSON errors
+    # Fix unescaped quotes, trailing commas, etc.
+    try:
+        # Find the JSON-like content
+        start = cleaned.find('{')
+        end = cleaned.rfind('}')
+        if start != -1 and end != -1 and end > start:
+            candidate = cleaned[start:end+1]
+            
+            # Fix common issues
+            # Remove trailing commas before closing braces/brackets
+            candidate = re.sub(r',\s*}', '}', candidate)
+            candidate = re.sub(r',\s*]', ']', candidate)
+            
+            return json.loads(candidate)
+    except Exception as e:
+        print(f"[DEBUG] JSON repair failed: {e}")
+    
+    # Last resort: raise with detailed error
+    print(f"[ERROR] All JSON extraction strategies failed")
+    print(f"[ERROR] Content length: {len(content)}")
+    print(f"[ERROR] First 500 chars: {content[:500]}")
+    print(f"[ERROR] Last 200 chars: {content[-200:]}")
     raise ValueError(f"Could not extract valid JSON from LLM output. First 200 chars: {content[:200]}")
 
 def analyze_profile(context_text: str, user_answers: dict) -> dict:
@@ -1340,6 +1942,50 @@ Tone: Assertive, analytical, "Human First", no buzzwords.
         })
         try:
             data = _sanitize_json_output(raw)
+            
+            # STRUCTURE VALIDATION & AUTO-CORRECTION for legacy profile
+            if not isinstance(data, dict):
+                raise ValueError("Parsed data is not a dictionary")
+            
+            # Fix missing 'meta' or 'fingerprint' fields
+            if 'meta' not in data or 'fingerprint' not in data:
+                # Check if data looks like it has the right content but wrong structure
+                if 'name' in data and 'thesis' in data:
+                    # It's just the meta content
+                    print("[FIX] Legacy profile: detected meta content at top level")
+                    meta_data = data
+                    data = {
+                        'meta': meta_data,
+                        'fingerprint': {
+                            'patterns': [],
+                            'anti_claims': [],
+                            'failure_map': [],
+                            'decision_log': [],
+                            'method': {'name': 'N/A', 'steps': [], 'when_works': '', 'when_fails': ''},
+                            'working_with_me': []
+                        }
+                    }
+            
+            # Ensure required fields exist
+            if 'meta' not in data:
+                print("[FIX] Legacy profile: adding missing 'meta' field")
+                data['meta'] = {
+                    'name': user_answers.get('who_are_you', 'Unknown'),
+                    'thesis': 'Analysis incomplete',
+                    'social': {}
+                }
+            
+            if 'fingerprint' not in data:
+                print("[FIX] Legacy profile: adding missing 'fingerprint' field")
+                data['fingerprint'] = {
+                    'patterns': [],
+                    'anti_claims': [],
+                    'failure_map': [],
+                    'decision_log': [],
+                    'method': {'name': 'N/A', 'steps': [], 'when_works': '', 'when_fails': ''},
+                    'working_with_me': []
+                }
+            
             validated = LegacyProfile.model_validate(data)
             return validated.model_dump()
         except Exception as inner:

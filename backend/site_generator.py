@@ -21,6 +21,44 @@ def generate_dynamic_website(html_code: str, user_name: str, image_paths: list =
         bool: True if successful, False otherwise
     """
     try:
+        # CRITICAL VALIDATION: Check for duplicate motion declarations that cause blank pages
+        import re
+        if '<script type="text/babel">' in html_code:
+            # Extract the Babel script content
+            babel_start = html_code.find('<script type="text/babel">')
+            babel_end = html_code.find('</script>', babel_start)
+            if babel_start != -1 and babel_end != -1:
+                babel_content = html_code[babel_start:babel_end]
+                
+                # Count how many times motion is declared
+                motion_declarations = len(re.findall(r'const\s+\{[^}]*motion[^}]*\}\s*=', babel_content))
+                motion_direct_assignments = len(re.findall(r'const\s+motion\s*=', babel_content))
+                
+                total_motion_declarations = motion_declarations + motion_direct_assignments
+                
+                if total_motion_declarations > 2:  # We expect: 1 for motion, 1 for AnimatePresence (or 1 destructuring)
+                    print(f"⚠️  WARNING: Found {total_motion_declarations} motion declarations - this causes blank pages!")
+                    print(f"[AUTO-FIX] Removing duplicate motion declarations...")
+                    
+                    # Remove dangerous window.Motion destructuring
+                    html_code = re.sub(
+                        r'\n\s*const\s*\{\s*motion[^}]*\}\s*=\s*window\.Motion\s*;?\s*',
+                        '\n',
+                        html_code
+                    )
+                    html_code = re.sub(
+                        r'\n\s*const\s*\{\s*motion[^}]*\}\s*=\s*window\[.framer-motion.\]\s*;?\s*',
+                        '\n',
+                        html_code
+                    )
+                    print(f"✅ Duplicate declarations removed")
+        
+        # Additional validation: Check for CONTENT_DATA
+        if '<script type="text/babel">' in html_code and 'CONTENT_DATA' not in html_code:
+            print("❌ CRITICAL ERROR: Generated HTML is missing CONTENT_DATA - page will be empty!")
+            print("This indicates the LLM failed to embed content. Cannot proceed.")
+            return False
+        
         # Clean output directory
         if os.path.exists(GENERATED_SITE_DIR):
             shutil.rmtree(GENERATED_SITE_DIR)

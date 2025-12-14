@@ -9,3 +9,5 @@ pypdf
 langchain
 langchain-openai
 pydantic
+selenium
+webdriver-manager

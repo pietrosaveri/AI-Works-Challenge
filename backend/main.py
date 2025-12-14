@@ -11,7 +11,7 @@ import sys
 # Add project root to sys.path to allow imports from backend module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.llm_service import analyze_profile, mood_agent, content_strategist_agent, ux_architect_agent, react_developer_agent, orchestrator_agent
+from backend.llm_service import analyze_profile, mood_agent, content_strategist_agent, ux_architect_agent, icon_curator_agent, react_developer_agent, orchestrator_agent, selenium_validator_agent
 from backend.scraper import process_inputs
 from backend.site_generator import generate_dynamic_website
 
@@ -112,8 +112,14 @@ async def analyze_profile_endpoint(
     print(f"UX Plan Navigation: {nav_structure}")
     print(f"UX Plan Pages: {len(ux_plan.get('pages', []))}")
     
+    print("\n=== ICON CURATOR AGENT ===")
+    icon_strategy = icon_curator_agent(mood_system, content_strategy, ux_plan, user_name)
+    print(f"Icon Library: {icon_strategy.get('icon_library', 'Unknown')}")
+    print(f"Icon Suggestions: {len(icon_strategy.get('suggestions', []))} icons")
+    print(f"Usage Philosophy: {icon_strategy.get('usage_philosophy', 'N/A')[:80]}")
+    
     print("\n=== REACT DEVELOPER AGENT ===")
-    react_code = react_developer_agent(mood_system, content_strategy, ux_plan, user_name, image_paths)
+    react_code = react_developer_agent(mood_system, content_strategy, ux_plan, user_name, image_paths, icon_strategy=icon_strategy)
     print(f"Generated React Code: {len(react_code)} characters")
     
     print("\n=== ORCHESTRATOR AGENT ===")
@@ -134,11 +140,74 @@ async def analyze_profile_endpoint(
     
     print("\n=== SITE GENERATOR ===")
     website_ready = generate_dynamic_website(react_code, user_name, image_paths)
-    if website_ready:
-        website_url = "/portfolio/"
-        print(f"✅ Dynamic site ready at: {website_url}")
-    else:
+    if not website_ready:
         print("❌ Site generation failed!")
+        return {
+            "status": "error",
+            "message": "Site generation failed",
+            "website_ready": False
+        }
+    
+    website_url = "/portfolio/"
+    print(f"✅ Dynamic site ready at: {website_url}")
+    
+    # ============================================================================
+    # SELENIUM VALIDATOR - Disabled per request (kept code, commented out)
+    # ============================================================================
+    # validation_report = selenium_validator_agent(f"http://localhost:8000{website_url}")
+    validation_report = {"success": True, "validation_skipped": True, "issues": [], "pages_tested": 0}
+    
+    # If validation found critical issues, attempt ONE regeneration
+    max_retries = 1
+    retry_count = 0
+    
+    # Disabled validation loop while Selenium agent is off
+    while False and not validation_report.get("success") and retry_count < max_retries and not validation_report.get("validation_skipped"):
+        print(f"\n=== VALIDATION FAILED - ATTEMPTING REGENERATION (Retry {retry_count + 1}/{max_retries}) ===")
+        
+        # Re-run orchestrator with validation feedback
+        orchestrator = orchestrator_agent(
+            mood_system, 
+            content_strategy, 
+            ux_plan, 
+            react_code, 
+            user_name, 
+            image_paths,
+            validation_report=validation_report
+        )
+        
+        # If orchestrator requests regeneration, do it
+        if orchestrator.get('needs_regeneration') or len(validation_report.get('issues', [])) > 0:
+            print(f"[REGENERATION] Orchestrator feedback: {orchestrator.get('regeneration_instructions', 'Fix validation issues')}")
+            
+            # Regenerate React code with orchestrator feedback
+            react_code = react_developer_agent(
+                mood_system,
+                content_strategy,
+                ux_plan,
+                user_name,
+                image_paths,
+                orchestrator_feedback=orchestrator.get('regeneration_instructions', 'Fix validation issues: ' + ', '.join(validation_report.get('issues', []))),
+                icon_strategy=icon_strategy
+            )
+            
+            # Regenerate site
+            website_ready = generate_dynamic_website(react_code, user_name, image_paths)
+            if not website_ready:
+                print("❌ Regeneration failed!")
+                break
+            
+            # Re-validate
+            print("\n=== RE-VALIDATION SKIPPED (Selenium disabled) ===")
+        else:
+            print("[INFO] Orchestrator declined regeneration despite validation issues")
+            break
+        
+        retry_count += 1
+    
+    # Final status
+    if validation_report.get("validation_skipped"):
+        print("\nℹ️  SITE READY (validation disabled per request)")
 
     return {
         "status": "success",
@@ -148,7 +217,8 @@ async def analyze_profile_endpoint(
         "design_system": mood_system,
         "content_strategy": content_strategy,
         "ux_plan": ux_plan,
-        "orchestrator": orchestrator
+        "orchestrator": orchestrator,
+        "validation": validation_report
     }
 
 # CV generation removed: this app only generates the dynamic site.
