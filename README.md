@@ -1,3 +1,5 @@
+<img width="3650" height="2116" alt="Screenshot 2025-12-14 at 16 10 45" src="https://github.com/user-attachments/assets/abac3b41-7339-41b5-9ffa-6a023009608c" />
+
 # Plato: The Anti-Portfolio Generator
 
 ## Mission
