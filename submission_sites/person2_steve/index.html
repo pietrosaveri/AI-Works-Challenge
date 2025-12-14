@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Professional Fingerprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Source+Serif+Pro:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/framer-motion@10/dist/framer-motion.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide-react/dist/esm/index.js"></script>
+<style>
+  body {font-family: 'Source Serif Pro', serif; color:#F8F9FA; background:#0A0E27;}
+  h1,h2,h3{font-family:'Cormorant Garamond', serif; font-weight:700; letter-spacing:0.02em;}
+  h1{font-weight:800; font-size:3.5rem;}
+  h2{font-weight:700; font-size:2.5rem;}
+  .glass {backdrop-filter:blur(10px); background:rgba(20,20,20,0.85); box-shadow: 0 4px 6px rgba(0,0,0,0.1);}
+  .nav-link{color:#FFFFFF; text-decoration:none;}
+  .text-accent{color:#FDCB6E;}
+  .bg-accent{background-color:#FDCB6E;}
+</style>
+</head>
+<body class="overflow-x-hidden">
+<div id="root"></div>
+
+<script type="text/babel">
+// Safe Framer Motion fallback to avoid blank page when CDN attaches differently
+const __Motion = (window.Motion || window['framer-motion'] || {});
+const motion = __Motion.motion || (({ children, ...props }) => React.createElement('div', props, children));
+const AnimatePresence = __Motion.AnimatePresence || (({ children }) => children);
+const { useState, useEffect } = React;
+
+const CONTENT_DATA = {
+  "pages": {
+    "home": {
+      "thesis": "I am a quiet architect of code, sculpting elegance while learning that the simplest solution often wins.",
+      "introduction": [
+        "I spend my days and nights coaxing order out of chaos, whether that means soldering a miniature audio circuit or refactoring a sprawling codebase into something that breathes. The act of turning complexity into clarity feels almost meditative, a ritual where each semicolon is a breath. Yet this devotion to perfection has taught me that the most beautiful design is not always the one that solves a problem, but the one that resonates with real users. I am an introvert who speaks fluent in semicolons and thinks in algorithms, but my work is ultimately about people. I have learned that listening to them sometimes trumps the allure of technical elegance. My journey is a balance between obsessive craftsmanship and pragmatic humility.",
+        "I am obsessed with vintage mechanical keyboards and building custom audio equipment. My weekends disappear into soldering tiny components and debugging circuit boards. I also brew my own kombucha experiments. These hobbies are not mere pastimes; they mirror the way I approach problems—careful, precise, and always willing to iterate. They reveal a pattern: I thrive in environments where attention to detail matters, yet I also recognize the limits of my own perfectionism."
+      ],
+      "navigation_prompt": "Explore the sections above"
+    },
+    "about": {
+      "page_title": "About",
+      "introduction": [],
+      "guidelines": [],
+      "contact_prompt": "Contact"
+    }
+  },
+  "meta": {
+    "site_title": "Professional Fingerprint",
+    "navigation_structure": [
+      "Home",
+      "About"
+    ]
+  }
+};
+
+function Nav() {
+  const [page, setPage] = useState(window.location.hash.replace('#','')||'home');
+  useEffect(() => {
+    const handler = () => setPage(window.location.hash.replace('#','')||'home');
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+  useEffect(() => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }, [page]);
+
+  return (
+    <nav className="fixed top-0 w-full backdrop-blur-md bg-black/70 z-50 glass flex justify-center space-x-8 py-4">
+      <a href="#home" className="nav-link flex items-center"><span>Home</span></a>
+      <a href="#about" className="nav-link flex items-center"><span>About</span></a>
+    </nav>
+  );
+}
+
+function Home() {
+  const { thesis, introduction } = CONTENT_DATA.pages.home;
+  return (
+    <section id="home" className="min-h-screen flex flex-col justify-center items-center py-32 px-10 text-center">
+      <h1 className="text-accent mb-8">{thesis}</h1>
+      {introduction.map((para,i)=>(
+        <p key={i} className="mb-6 max-w-3xl text-lg">{para}</p>
+      ))}
+    </section>
+  );
+}
+
+function About() {
+  const { page_title, contact_prompt } = CONTENT_DATA.pages.about;
+  return (
+    <section id="about" className="min-h-screen flex flex-col justify-center items-center py-32 px-10 text-center">
+      <h2 className="text-accent mb-8">{page_title}</h2>
+      <p className="mb-6 max-w-3xl text-lg">This is a placeholder for contact information and guidelines. Feel free to reach out.</p>
+      <button className="px-6 py-3 bg-accent text-white rounded-full hover:bg-opacity-80 transition duration-200"> {contact_prompt} </button>
+    </section>
+  );
+}
+
+function App() {
+  const [page, setPage] = useState(window.location.hash.replace('#','')||'home');
+  useEffect(() => {
+    const handler = () => setPage(window.location.hash.replace('#','')||'home');
+    window.addEventListener('hashchange', handler);
+    return () => window.removeEventListener('hashchange', handler);
+  }, []);
+
+  return (
+    <>
+      <Nav />
+      <main className="pt-20">
+        {page==='home' && <Home />}
+        {page==='about' && <About />}
+      </main>
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

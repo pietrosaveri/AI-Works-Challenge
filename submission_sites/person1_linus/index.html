@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>User Name - Professional Fingerprint</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Source+Serif+Pro:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/framer-motion@10/dist/framer-motion.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@1.135.0/dist/umd/lucide.min.js"></script>
+<style>
+  body{font-family:'Source Serif Pro',serif;color:#E0E0E0;background:#121212;}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:700;letter-spacing:.02em;}
+  h1{font-size:3.5rem;font-weight:800;}
+  h2{font-size:2.5rem;}
+  .glass{backdrop-filter:blur(10px);background:rgba(20,20,20,.85);box-shadow:0 4px 6px rgba(0,0,0,.1);}
+  .nav-link{color:#FFFFFF;text-decoration:none;}
+  .text-accent{color:#FFEA00;}
+  .bg-accent{background-color:#FFEA00;}
+</style>
+</head>
+<body class="overflow-x-hidden">
+<div id="root"></div>
+
+<script type="text/babel">
+// Safe Framer Motion fallback to avoid blank page when CDN attaches differently
+const __Motion = (window.Motion || window['framer-motion'] || {});
+const motion = __Motion.motion || (({ children, ...props }) => React.createElement('div', props, children));
+const AnimatePresence = __Motion.AnimatePresence || (({ children }) => children);
+const { useState, useEffect, useRef } = React;
+
+const CONTENT_DATA = {
+  "pages": {
+    "home": {
+      "thesis": "I thrive at the intersection of technical rigor and human connection, learning that sustainable impact is born from listening as much as it is from expertise.",
+      "introduction": [
+        "When I lace up my hiking boots, I feel the same curiosity that drives me to tackle environmental puzzles at work. The mountains teach me patience and perspective, while watercolor painting forces me to translate complex emotions into simple colors.",
+        "Teaching kids about sustainable living is my daily reminder that knowledge is most powerful when it sparks action. Each lesson is a micro‑experiment in empathy, showing me that solutions must be co‑created with those they affect."
+      ],
+      "navigation_prompt": "Explore the sections above"
+    },
+    "behavioral_patterns": {
+      "page_title": "Behavioral Patterns",
+      "introduction": [
+        "My professional life is guided by a set of recurring mental habits that shape how I approach problems, people, and progress."
+      ],
+      "patterns": [
+        {
+          "name": "Curiosity‑Driven Exploration",
+          "summary": "I actively seek unknowns, turning every challenge into a learning opportunity.",
+          "analysis": [
+            "When confronted with a new environmental issue, I first map out the technical variables before mapping the human context. This dual‑lens approach ensures that my solutions are both effective and relevant.",
+            "The hiking trips reinforce this pattern: I pause at every vista to observe, then translate those observations into actionable insights for projects.",
+            "This habit often leads me to propose innovative, yet grounded, strategies that surprise stakeholders with their practicality."
+          ],
+          "evidence_quotes": [
+            "The ability to solve complex environmental challenges while working with diverse communities."
+          ]
+        },
+        {
+          "name": "Empathy‑First Collaboration",
+          "summary": "I prioritize listening over lecturing, believing that true expertise emerges from partnership.",
+          "analysis": [
+            "A pivotal moment was when I pushed a project forward without fully hearing community concerns. The backlash forced me to re‑engineer the plan around their needs, turning a potential failure into a stronger outcome.",
+            "This pattern manifests in my teaching: I ask kids what they already know, then build lessons that connect to their lived experiences.",
+            "The result is higher engagement and solutions that stand the test of local realities."
+          ],
+          "evidence_quotes": [
+            "I once pushed for a project without properly listening to the community's needs."
+          ]
+        },
+        {
+          "name": "Perpetual Learning",
+          "summary": "I treat every task as a chance to acquire new knowledge and refine my skill set.",
+          "analysis": [
+            "My watercolor experiments are not just hobbies; they are laboratories where I test color theory, composition, and emotional resonance—skills that translate into clearer visual data presentations.",
+            "The hiking routine keeps me physically and mentally agile, allowing me to adapt quickly when project parameters shift.",
+            "This relentless curiosity keeps my work fresh and ensures I never become complacent in a rapidly evolving field."
+          ],
+          "evidence_quotes": [
+            "A perpetual learner who believes small actions create ripples of change."
+          ]
+        }
+      ]
+    },
+    "anti_claims": {
+      "page_title": "Boundaries & Refusals",
+      "introduction": [
+        "I set clear limits on what I will accept as a professional, ensuring integrity and focus."
+      ],
+      "anti_claims": [
+        {
+          "claim": "I can solve any environmental problem alone.",
+          "analysis": [
+            "While I bring deep technical knowledge, history shows that isolated solutions often miss cultural nuances. My past mistake—ignoring community input—illustrates the danger of overconfidence.",
+            "True impact requires a coalition of voices, so I refuse to claim solitary expertise when collaboration is essential.",
+            "This stance protects me from burnout and keeps projects grounded in real needs."
+          ],
+          "quote": "I once pushed for a project without properly listening to the community's needs."
+        },
+        {
+          "claim": "Sustainability is a one‑time fix.",
+          "analysis": [
+            "I view sustainability as an evolving practice, not a destination. My teaching philosophy reinforces this by encouraging continuous experimentation.",
+            "Declaring sustainability as final would halt progress and ignore emerging challenges like climate volatility or new technologies.",
+            "Thus, I reject the notion of a single solution and instead champion iterative improvement."
+          ],
+          "quote": "The ability to solve complex environmental challenges while working with diverse communities."
+        }
+      ]
+    },
+    "failures_and_lessons": {
+      "page_title": "Failure Map",
+      "introduction": [
+        "Failures are not setbacks; they are data points that refine my decision framework."
+      ],
+      "failures": [
+        {
+          "title": "Community Disconnect",
+          "analysis": [
+            "I launched a waste‑reduction initiative without first surveying local attitudes. The community felt imposed upon, leading to low participation.",
+            "The root cause was my assumption that technical merit alone would drive adoption. I learned that legitimacy comes from shared ownership.",
+            "The lesson reshaped my process: now every project begins with a listening phase, ensuring alignment before any technical design."
+          ],
+          "key_lesson": "Authentic collaboration is the foundation of sustainable solutions."
+        }
+      ]
+    },
+    "decision_architecture": {
+      "page_title": "Decision Log",
+      "introduction": [
+        "My decisions are scaffolded by a transparent framework that balances data, empathy, and feasibility."
+      ],
+      "decisions": [
+        {
+          "title": "Adopting a Community‑Led Design Process",
+          "analysis": [
+            "I chose to institutionalize stakeholder workshops after the community disconnect failure. The decision involved weighing time costs against long‑term buy‑in.",
+            "I anticipated resistance from internal teams accustomed to top‑down approaches, but the evidence of higher adoption rates justified the shift.",
+            "The outcome was a measurable increase in project uptake and a stronger reputation for inclusivity."
+          ],
+          "key_insight": "Process changes that empower stakeholders yield higher impact than purely technical optimizations."
+        }
+      ]
+    },
+    "proprietary_method": {
+      "page_title": "Proprietary Method",
+      "method_name": "Eco‑Synergy Loop",
+      "introduction": [
+        "The Eco‑Synergy Loop is a cyclical framework that blends technical analysis with human-centered design."
+      ],
+      "steps": [
+        {
+          "step_number": 1,
+          "step_name": "Context Mapping",
+          "description": [
+            "I gather environmental data, community histories, and stakeholder narratives to create a holistic map.",
+            "This step ensures that no critical variable is overlooked, whether it’s a local river's flow or a cultural tradition.",
+            "The map serves as the foundation for all subsequent decisions."
+          ]
+        },
+        {
+          "step_number": 2,
+          "step_name": "Co‑Creation Workshops",
+          "description": [
+            "I facilitate sessions where experts and community members jointly generate solution ideas.",
+            "The workshop format balances power dynamics, giving voice to those often marginalized in technical discussions.",
+            "Outcomes are co‑authored blueprints that reflect both feasibility and relevance."
+          ]
+        },
+        {
+          "step_number": 3,
+          "step_name": "Iterative Prototyping",
+          "description": [
+            "Prototypes are built quickly and tested in real settings, allowing rapid feedback loops.",
+            "I use low‑cost materials to keep iterations affordable and scalable.",
+            "Each iteration refines the solution, ensuring it remains aligned with evolving needs."
+          ]
+        },
+        {
+          "step_number": 4,
+          "step_name": "Reflective Scaling",
+          "description": [
+            "Once a prototype proves successful, I document lessons and adapt the model for broader application.",
+            "Scaling is approached cautiously, with continuous monitoring to detect cultural or environmental shifts.",
+            "The final product is both technically sound and socially resilient."
+          ]
+        }
+      ],
+      "when_works": [
+        "Complex environmental problems with high community impact",
+        "Projects requiring rapid adaptation to local contexts"
+      ],
+      "when_fails": [
+        "Highly regulated industries where stakeholder input is limited",
+        "Situations demanding immediate, unilateral technical decisions"
+      ],
+      "conclusion": [
+        "The Eco‑Synergy Loop transforms expertise into action by embedding empathy at every stage."
+      ]
+    },
+    "about": {
+      "page_title": "Working With Me",
+      "introduction": [
+        "I am a lifelong learner who believes that small, intentional actions can create significant environmental ripples."
+      ],
+      "guidelines": [
+        {
+          "guideline": "Listen before you act",
+          "explanation": [
+            "Engage stakeholders early to surface hidden needs.",
+            "Use their insights to shape technical parameters."
+          ]
+        },
+        {
+          "guideline": "Iterate relentlessly",
+          "explanation": [
+            "Prototype quickly and refine based on real feedback.",
+            "Avoid the trap of perfecting a solution before testing."
+          ]
+        },
+        {
+          "guideline": "Celebrate small wins",
+          "explanation": [
+            "Track incremental progress to maintain momentum.",
+            "Share successes to inspire broader participation."
+          ]
+        }
+      ],
+      "contact_prompt": "Get in touch"
+    }
+  },
+  "meta": {
+    "site_title": "User Name - Professional Fingerprint",
+    "navigation_structure": [
+      "Home",
+      "Patterns",
+      "Boundaries & Refusals",
+      "Failure Map",
+      "Decision Log",
+      "Proprietary Method",
+      "Working With Me"
+    ]
+  }
+};
+
+function Nav() {
+  const pages = CONTENT_DATA.meta.navigation_structure;
+  return (
+    <nav className="fixed top-0 w-full backdrop-blur-md bg-black/70 z-50 py-4">
+      <div className="max-w-7xl mx-auto flex justify-center space-x-8">
+        {pages.map((p,i)=>(
+          <a key={i} href={`#${p.toLowerCase().replace(/ & /g,'-').replace(/\s+/g,'-')}`} className="nav-link text-lg font-semibold">{p}</a>
+        ))}
+      </div>
+    </nav>
+  );
+}
+
+function Home() {
+  const { thesis, introduction, navigation_prompt } = CONTENT_DATA.pages.home;
+  return (
+    <section id="home" className="min-h-screen flex items-center justify-center py-32 px-10 text-center">
+      <div className="max-w-3xl mx-auto space-y-8">
+        <h1 className="text-accent">{thesis}</h1>
+        {introduction.map((p,i)=>(
+          <p key={i} className="text-lg">{p}</p>
+        ))}
+        <p className="mt-4 font-semibold text-accent">{navigation_prompt}</p>
+      </div>
+    </section>
+  );
+}
+
+function Patterns() {
+  const { introduction, patterns } = CONTENT_DATA.pages.behavioral_patterns;
+  return (
+    <section id="patterns" className="min-h-screen py-32 px-10">
+      <div className="max-w-7xl mx-auto space-y-12">
+        {introduction.map((p,i)=>(
+          <p key={i} className="text-2xl">{p}</p>
+        ))}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {patterns.map((pat,i)=>(
+            <motion.div key={i} className="glass p-8 rounded-xl" whileHover={{y:-10}} whileTap={{scale:0.97}}>
+              <h3 className="text-xl font-semibold mb-2">{pat.name}</h3>
+              <p className="mb-4 italic">{pat.summary}</p>
+              {pat.analysis.map((a,j)=>(
+                <p key={j} className="text-sm mb-2">{a}</p>
+              ))}
+              {pat.evidence_quotes.map((q,k)=>(
+                <blockquote key={k} className="text-sm mt-2 italic border-l-4 pl-3">{q}</blockquote>
+              ))}
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function AntiClaims() {
+  const { introduction, anti_claims } = CONTENT_DATA.pages.anti_claims;
+  return (
+    <section id="boundaries-&-refusals" className="min-h-screen py-32 px-10">
+      <div className="max-w-7xl mx-auto space-y-12">
+        {introduction.map((p,i)=>(
+          <p key={i} className="text-2xl">{p}</p>
+        ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {anti_claims.map((ac,i)=>(
+            <motion.div key={i} className="glass p-8 rounded-xl" whileHover={{y:-10}} whileTap={{scale:0.97}}>
+              <h3 className="text-xl font-semibold mb-2">{ac.claim}</h3>
+              {ac.analysis.map((a,j)=>(
+                <p key={j} className="text-sm mb-2">{a}</p>
+              ))}
+              <blockquote className="mt-4 italic border-l-4 pl-3">{ac.quote}</blockquote>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Failures() {
+  const { introduction, failures } = CONTENT_DATA.pages.failures_and_lessons;
+  return (
+    <section id="failure-map" className="min-h-screen py-32 px-10">
+      <div className="max-w-7xl mx-auto space-y-12">
+        {introduction.map((p,i)=>(
+          <p key={i} className="text-2xl">{p}</p>
+        ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {failures.map((f,i)=>(
+            <motion.div key={i} className="glass p-8 rounded-xl" whileHover={{y:-10}} whileTap={{scale:0.97}}>
+              <h3 className="text-xl font-semibold mb-2">{f.title}</h3>
+              {f.analysis.map((a,j)=>(
+                <p key={j} className="text-sm mb-2">{a}</p>
+              ))}
+              <p className="mt-4 font-semibold text-accent">{f.key_lesson}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Decisions() {
+  const { introduction, decisions } = CONTENT_DATA.pages.decision_architecture;
+  return (
+    <section id="decision-log" className="min-h-screen py-32 px-10">
+      <div className="max-w-7xl mx-auto space-y-12">
+        {introduction.map((p,i)=>(
+          <p key={i} className="text-2xl">{p}</p>
+        ))}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {decisions.map((d,i)=>(
+            <motion.div key={i} className="glass p-8 rounded-xl" whileHover={{y:-10}} whileTap={{scale:0.97}}>
+              <h3 className="text-xl font-semibold mb-2">{d.title}</h3>
+              {d.analysis.map((a,j)=>(
+                <p key={j} className="text-sm mb-2">{a}</p>
+              ))}
+              <p className="mt-4 font-semibold text-accent">{d.key_insight}</p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Method() {
+  const { method_name, introduction, steps, when_works, when_fails, conclusion } = CONTENT_DATA.pages.proprietary_method;
+  return (
+    <section id="proprietary-method" className="min-h-screen py-32 px-10">
+      <div className="max-w-7xl mx-auto space-y-12">
+        <h2>{method_name}</h2>
+        {introduction.map((p,i)=>(
+          <p key={i} className="text-lg">{p}</p>
+        ))}
+        <div className="space-y-8">
+          {steps.map((s,i)=>(
+            <motion.div key={i} className="glass p-8 rounded-xl" whileHover={{y:-10}} whileTap={{scale:0.97}}>
+              <h3 className="text-xl font-semibold mb-2">{s.step_number}. {s.step_name}</h3>
+              {s.description.map((d,j)=>(
+                <p key={j} className="text-sm mb-2">{d}</p>
+              ))}
+            </motion.div>
+          ))}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div>
+            <h3 className="text-lg font-semibold mb-2">When it Works</h3>
+            <ul className="list-disc list-inside">
+              {when_works.map((w,i)=>(
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold mb-2">When it Fails</h3>
+            <ul className="list-disc list-inside">
+              {when_fails.map((w,i)=>(
+                <li key={i}>{w}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <div className="mt-8">
+          {conclusion.map((c,i)=>(
+            <p key={i} className="text-lg">{c}</p>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function About() {
+  const { introduction, guidelines, contact_prompt } = CONTENT_DATA.pages.about;
+  return (
+    <section id="working-with-me" className="min-h-screen py-32 px-10">
+      <div className="max-w-7xl mx-auto space-y-12 text-center">
+        {introduction.map((p,i)=>(
+          <p key={i} className="text-2xl">{p}</p>
+        ))}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {guidelines.map((g,i)=>(
+            <motion.div key={i} className="glass p-8 rounded-xl" whileHover={{y:-10}} whileTap={{scale:0.97}}>
+              <h3 className="text-xl font-semibold mb-2">{g.guideline}</h3>
+              {g.explanation.map((e,j)=>(
+                <p key={j} className="text-sm mb-2">{e}</p>
+              ))}
+            </motion.div>
+          ))}
+        </div>
+        <button className="mt-8 px-6 py-3 bg-accent text-black rounded-xl font-semibold hover:opacity-90 transition-opacity">{contact_prompt}</button>
+      </div>
+    </section>
+  );
+}
+
+function App() {
+  const [page, setPage] = useState(window.location.hash.slice(1) || 'home');
+  useEffect(() => {
+    const onHash = () => setPage(window.location.hash.slice(1));
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+  useEffect(() => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }, [page]);
+
+  return (
+    <div>
+      <Nav />
+      <AnimatePresence mode="wait">
+        {page==='home' && <Home key="home" />}
+        {page==='patterns' && <Patterns key="patterns" />}
+        {page==='boundaries-&-refusals' && <AntiClaims key="anti" />}
+        {page==='failure-map' && <Failures key="failures" />}
+        {page==='decision-log' && <Decisions key="decisions" />}
+        {page==='proprietary-method' && <Method key="method" />}
+        {page==='working-with-me' && <About key="about" />}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

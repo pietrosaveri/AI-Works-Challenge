@@ -1,0 +1,16 @@
+{
+  "name": "James Chen",
+  "urls": [],
+  "text_input": "",
+  "answers": {
+    "hobbies": "I'm obsessed with vintage mechanical keyboards and building custom audio equipment. My weekends disappear into soldering tiny components and debugging circuit boards. I also brew my own kombucha experiments.",
+    "study_work": "The elegant beauty of clean code and well-designed systems. There's something almost meditative about refactoring a complex problem into something simple and maintainable.",
+    "mistake": "I spent three months building a perfect solution to a problem that didn't really need solving. It taught me that done is better than perfect, and that listening to users matters more than technical elegance.",
+    "beyond_title": "An introvert who speaks fluent in semicolons and thinks in algorithms"
+  },
+  "vibe": {
+    "color": "Midnight Purple",
+    "animal": "Owl",
+    "abstract_word": "Recursion"
+  }
+}

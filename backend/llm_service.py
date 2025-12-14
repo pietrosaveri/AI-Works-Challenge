@@ -91,7 +91,7 @@ class AboutPage(BaseModel):
 class HomePage(BaseModel):
     thesis: str = Field(default="Analysis in progress...")
     introduction: List[str] = Field(default_factory=lambda: ["Please wait while we analyze your profile."])
-    navigation_prompt: str = Field(default="Explore the sections below")
+    navigation_prompt: str = Field(default="Explore the sections above")
 
 class PatternsPage(BaseModel):
     page_title: str = Field(default="Behavioral Patterns")
@@ -689,7 +689,7 @@ EXAMPLE OUTPUT STRUCTURE (follow this EXACTLY):
     "home": {{
       "thesis": "Your one-sentence thesis here",
       "introduction": ["Paragraph 1", "Paragraph 2"],
-      "navigation_prompt": "Explore the sections below"
+      "navigation_prompt": "Explore the sections above"
     }},
     "behavioral_patterns": {{
       "page_title": "Behavioral Patterns",
@@ -1127,6 +1127,28 @@ TECHNICAL REQUIREMENTS (Desktop-first, premium feel):
 - Support browser back/forward buttons with hash navigation
 - Ensure NOTHING is misaligned or broken - test layout carefully
 
+CRITICAL STYLING RULES (PREVENT BLANK/INVISIBLE PAGES):
+1. **Navigation visibility**: Glass nav MUST have solid dark background (rgba(0,0,0,0.8) or rgba(30,30,30,0.9)) with white text
+2. **Text contrast**: NEVER use white text on white backgrounds or black on black
+3. **Accent color usage**: Create .text-accent and .bg-accent classes in <style> using the MOOD_SYSTEM accent color
+4. **Minimum viable styles**: Always include inline <style> tag with body, h1-h3, .glass, .nav-link, .text-accent, .bg-accent
+5. **Test visibility**: Imagine opening in a browser - can you SEE the navigation? Can you SEE the headings?
+
+STYLE TAG TEMPLATE (MANDATORY):
+```html
+<style>
+  body {{font-family: 'PRIMARY_FONT', sans-serif; color: TEXT_COLOR; background: BG_COLOR;}}
+  h1,h2,h3{{font-family:'HEADING_FONT',sans-serif; font-weight:700; letter-spacing: 0.02em;}}
+  h1{{font-weight:800; font-size: 3.5rem;}}
+  h2{{font-weight:700; font-size: 2.5rem;}}
+  .glass {{backdrop-filter:blur(10px); background:rgba(20,20,20,0.85); box-shadow: 0 4px 6px rgba(0,0,0,0.1);}}
+  .nav-link{{color:#FFFFFF; text-decoration:none;}}
+  .text-accent{{color: ACCENT_COLOR;}}
+  .bg-accent{{background-color: ACCENT_COLOR;}}
+</style>
+```
+Replace PRIMARY_FONT, HEADING_FONT, TEXT_COLOR, BG_COLOR, ACCENT_COLOR with actual values from MOOD_SYSTEM.
+
 CDN SETUP (CRITICAL - COPY EXACTLY):
 ```html
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
@@ -1157,6 +1179,18 @@ REACT SCRIPT STRUCTURE (CRITICAL):
 ```
 
 CRITICAL: <div id="root"></div> MUST come BEFORE the <script> tag!
+
+JSX SYNTAX VALIDATION (CRITICAL - PREVENT BLANK PAGES):
+1. **Self-closing tags**: ALL React components without children MUST use `/>` (e.g., `<Home />`, `<Patterns />`)
+2. **Conditional rendering**: `{condition && <Component />}` - NEVER forget the closing `/>` 
+3. **Check every component**: In the main render, verify EACH component line ends with `/>` or `></Component>`
+4. **Common mistake**: `{page==='home'&&<Home key="home"}}` ❌ WRONG
+5. **Correct syntax**: `{page==='home'&&<Home key="home"/>}` ✅ CORRECT
+
+BEFORE SUBMITTING YOUR HTML, SCAN THESE LINES:
+- Main App return statement with conditional rendering
+- Every `<ComponentName key="..."/>` must have the closing `/>`
+- Missing `/>` causes JavaScript parse error = BLANK PAGE
 
 DESIGN GUIDELINES (APPLE STYLE):
 1. **Typography**: Use `tracking-tight` for headings. Huge sizes (`text-6xl` to `text-9xl`).
@@ -1392,6 +1426,85 @@ CRITICAL REMINDER:
             if 'createRoot' not in html_content and 'ReactDOM.render' not in html_content:
                 print("[ERROR] Missing React rendering code!")
                 raise ValueError("Generated code missing React render call")
+            
+            # FIX: Invisible content due to poor contrast or missing accent colors
+            if '<style>' in html_content:
+                style_start = html_content.find('<style>')
+                style_end = html_content.find('</style>', style_start)
+                if style_start != -1 and style_end != -1:
+                    style_content = html_content[style_start:style_end + 8]
+                    
+                    # Check for invisible nav (white text on light glass)
+                    if '.glass' in style_content and 'rgba(255,255,255' in style_content:
+                        print("[FIX] Detected invisible glass nav (white on white) - darkening background")
+                        # Replace transparent white glass with dark glass
+                        style_content = style_content.replace('rgba(255,255,255,0.1)', 'rgba(20,20,20,0.85)')
+                        style_content = style_content.replace('rgba(255,255,255,0.2)', 'rgba(20,20,20,0.85)')
+                        style_content = style_content.replace('rgba(255,255,255,0.3)', 'rgba(20,20,20,0.85)')
+                        html_content = html_content[:style_start] + style_content + html_content[style_end + 8:]
+                    
+                    # FIX: Ensure proper contrast between text and background
+                    def get_luminance(hex_color):
+                        """Calculate relative luminance for WCAG contrast"""
+                        hex_color = hex_color.strip('#')
+                        if len(hex_color) == 3:
+                            hex_color = ''.join([c*2 for c in hex_color])
+                        r, g, b = [int(hex_color[i:i+2], 16)/255 for i in (0, 2, 4)]
+                        r = r/12.92 if r <= 0.03928 else ((r+0.055)/1.055)**2.4
+                        g = g/12.92 if g <= 0.03928 else ((g+0.055)/1.055)**2.4
+                        b = b/12.92 if b <= 0.03928 else ((b+0.055)/1.055)**2.4
+                        return 0.2126*r + 0.7152*g + 0.0722*b
+                    
+                    def has_good_contrast(color1, color2, min_ratio=4.5):
+                        """Check if two colors have sufficient contrast"""
+                        try:
+                            lum1 = get_luminance(color1)
+                            lum2 = get_luminance(color2)
+                            lighter = max(lum1, lum2)
+                            darker = min(lum1, lum2)
+                            ratio = (lighter + 0.05) / (darker + 0.05)
+                            return ratio >= min_ratio
+                        except:
+                            return True  # If parsing fails, assume it's okay
+                    
+                    # Extract body background and text color from mood_system
+                    bg_color = mood_system.get('colors', {}).get('background', '#FFFFFF')
+                    text_color = mood_system.get('colors', {}).get('text', '#000000')
+                    
+                    # Check contrast and fix if needed
+                    if not has_good_contrast(bg_color, text_color):
+                        print(f"[FIX] Poor contrast detected: {text_color} on {bg_color}")
+                        # Determine if background is light or dark
+                        bg_lum = get_luminance(bg_color)
+                        if bg_lum > 0.5:
+                            # Light background - use dark text
+                            text_color = '#1a1a1a'
+                            print(f"[FIX] Using dark text {text_color} for light background")
+                        else:
+                            # Dark background - use light text
+                            text_color = '#f5f5f5'
+                            print(f"[FIX] Using light text {text_color} for dark background")
+                        
+                        # Update the style content
+                        import re
+                        # Fix body color
+                        style_content = re.sub(r'(body\s*\{[^}]*color\s*:\s*)#[0-9a-fA-F]{3,6}', f'\\1{text_color}', style_content)
+                        # Ensure h1,h2,h3 have explicit color
+                        if 'h1,h2,h3' in style_content and 'color:' not in style_content[style_content.find('h1,h2,h3'):style_content.find('}', style_content.find('h1,h2,h3'))]:
+                            style_content = style_content.replace('h1,h2,h3{', f'h1,h2,h3{{color:{text_color};')
+                        elif 'h1,h2,h3' not in style_content:
+                            # Add heading styles with proper color
+                            style_content = style_content.replace('</style>', f'\n  h1,h2,h3{{color:{text_color};}}\n</style>')
+                        
+                        html_content = html_content[:style_start] + style_content + html_content[style_end + 8:]
+                    
+                    # Add missing accent color classes if not present
+                    if '.text-accent' not in style_content or '.bg-accent' not in style_content:
+                        print("[FIX] Adding missing accent color classes")
+                        # Extract accent color from mood_system if available
+                        accent_color = mood_system.get('colors', {}).get('accent', '#2997ff')
+                        accent_styles = f"\n  .text-accent{{color:{accent_color};}}\n  .bg-accent{{background-color:{accent_color};}}\n"
+                        html_content = html_content.replace('</style>', accent_styles + '</style>')
             
             # Check and FIX lucide-react usage issues (common mistake)
             if 'lucide' in html_content.lower():

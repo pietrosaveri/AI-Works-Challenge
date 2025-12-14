@@ -126,10 +126,37 @@ async def analyze_profile_endpoint(
     orchestrator = orchestrator_agent(mood_system, content_strategy, ux_plan, react_code, user_name, image_paths)
     print(f"Orchestrator Summary: {orchestrator.get('summary', 'No summary')}"[:160])
     
-    # If orchestrator regenerated code, use the new version
-    if orchestrator.get('react_code_regenerated') and orchestrator.get('new_react_code'):
-        print("✅ Using regenerated React code from Orchestrator feedback")
-        react_code = orchestrator.get('new_react_code')
+    # ORCHESTRATOR FEEDBACK LOOP - Keep regenerating until orchestrator is satisfied
+    max_orchestrator_retries = 2
+    orchestrator_retry_count = 0
+    
+    while orchestrator.get('needs_regeneration') and orchestrator_retry_count < max_orchestrator_retries:
+        print(f"\n=== ORCHESTRATOR REQUESTS REGENERATION (Attempt {orchestrator_retry_count + 1}/{max_orchestrator_retries}) ===")
+        print(f"Issues found: {orchestrator.get('regeneration_instructions', 'See feedback')}")
+        
+        # Regenerate React code with orchestrator's specific feedback
+        react_code = react_developer_agent(
+            mood_system,
+            content_strategy,
+            ux_plan,
+            user_name,
+            image_paths,
+            orchestrator_feedback=orchestrator.get('regeneration_instructions', 'Fix the issues identified'),
+            icon_strategy=icon_strategy
+        )
+        print(f"Regenerated React Code: {len(react_code)} characters")
+        
+        # Re-run orchestrator to verify the fixes
+        print("\n=== RE-EVALUATING WITH ORCHESTRATOR ===")
+        orchestrator = orchestrator_agent(mood_system, content_strategy, ux_plan, react_code, user_name, image_paths)
+        print(f"Orchestrator Re-evaluation: {orchestrator.get('summary', 'No summary')}"[:160])
+        
+        orchestrator_retry_count += 1
+    
+    if orchestrator.get('needs_regeneration'):
+        print(f"\n⚠️  Orchestrator still has concerns after {max_orchestrator_retries} attempts, proceeding anyway")
+    else:
+        print("\n✅ Orchestrator approved - no further issues detected")
     
     # Legacy profile data for the analysis view (kept for backward compatibility)
     profile_data = analyze_profile(raw_text, answers_dict)

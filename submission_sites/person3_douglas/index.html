@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>User Name - Professional Fingerprint</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Source+Serif+Pro:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/framer-motion@10/dist/framer-motion.js"></script>
+<script src="https://unpkg.com/lucide-react@latest/dist/lucide.min.js"></script>
+<style>
+  body{font-family:'Source Serif Pro',serif;color:#EAEAEA;background:#1A1A2E;}
+  h1,h2,h3{font-family:'Cormorant Garamond',serif;font-weight:700;letter-spacing:.02em;}
+  h1{font-weight:800;font-size:3.5rem;}
+  h2{font-weight:700;font-size:2.5rem;}
+  .glass{backdrop-filter:blur(10px);background:rgba(20,20,20,.85);box-shadow:0 4px 6px rgba(0,0,0,.1);}
+  .nav-link{color:#FFFFFF;text-decoration:none;}
+  .text-accent{color:#FFE66D;}
+  .bg-accent{background-color:#FFE66D;}
+</style>
+</head>
+<body class="overflow-x-hidden">
+<div id="root"></div>
+
+<script type="text/babel">
+// Safe Framer Motion fallback to avoid blank page when CDN attaches differently
+const __Motion = (window.Motion || window['framer-motion'] || {});
+const motion = __Motion.motion || (({ children, ...props }) => React.createElement('div', props, children));
+const AnimatePresence = __Motion.AnimatePresence || (({ children }) => children);
+const { useState, useEffect } = React;
+
+const CONTENT_DATA = {
+  "pages": {
+    "home": {
+      "thesis": "I am a catalyst who thrives on creating intentional communities, but my relentless openness once led to burnout, teaching me that sustainable impact requires deliberate boundaries.",
+      "introduction": [
+        "I spend my evenings turning strangers into friends over a shared meal, believing that vulnerability fuels innovation. The kitchen becomes a laboratory where ideas simmer and new collaborations are born.",
+        "My current pursuit of cello mastery, though awkward, reflects a deeper pattern: I am drawn to disciplines that demand patience and persistence. The slow progress of my bowing technique mirrors the careful cultivation of relationships I nurture.",
+        "Collecting vintage maps from flea markets is not a hobby but a metaphor for my professional ethos—charting unknown territories, recognizing hidden routes, and guiding others to navigate them safely."
+      ],
+      "navigation_prompt": "Explore the sections above"
+    },
+    "behavioral_patterns": {
+      "page_title": "Behavioral Patterns",
+      "introduction": [
+        "The following patterns distill how I think, decide, and act in professional contexts. Each pattern is illustrated with concrete evidence from my own narrative."
+      ],
+      "patterns": [
+        {
+          "name": "Boundary Neglect",
+          "summary": "A tendency to say yes to every opportunity until resources are depleted.",
+          "analysis": [
+            "For two years I accepted all projects, believing that availability equated to value. This led to chronic exhaustion and a loss of focus on high-impact work.",
+            "The burnout experience forced me to reassess my priorities, realizing that boundaries are not selfish but essential for long-term contribution.",
+            "I now evaluate each opportunity against a personal impact matrix, ensuring alignment with my core mission before committing."
+          ],
+          "evidence_quotes": [
+            "\"I said yes to every opportunity for two years and burned out completely.\"",
+            "\"It taught me that boundaries aren't selfish—they're necessary for sustainable impact.\""
+          ]
+        },
+        {
+          "name": "Community Builder",
+          "summary": "Creating safe, vulnerable spaces that spark collective innovation.",
+          "analysis": [
+            "Hosting monthly dinner parties transforms strangers into collaborators, providing a low-stakes environment for idea exchange.",
+            "I deliberately design these gatherings to lower psychological barriers, encouraging participants to share failures as much as successes.",
+            "The resulting network of cross-disciplinary contacts often leads to projects that none could have conceived alone."
+          ],
+          "evidence_quotes": [
+            "\"I host monthly dinner parties where strangers become friends over home‑cooked meals.\"",
+            "\"The magic moment when a team clicks and achieves something none of them could have done alone.\""
+          ]
+        },
+        {
+          "name": "Patience Practitioner",
+          "summary": "Approaching skill acquisition and problem solving with long-term persistence.",
+          "analysis": [
+            "Learning the cello poorly yet consistently demonstrates my commitment to incremental progress over instant mastery.",
+            "This mindset translates into project management, where I prioritize iterative development and continuous learning.",
+            "By embracing failure as a step toward mastery, I foster resilience in teams and myself."
+          ],
+          "evidence_quotes": [
+            "\"I'm also learning to play the cello (badly)\"",
+            "\"Collect vintage maps from flea markets.\""
+          ]
+        }
+      ]
+    },
+    "anti_claims": {
+      "page_title": "Boundaries & Refusals",
+      "introduction": [
+        "Below are assertions that might be made about my professional persona, followed by a critical examination of why they do not fully capture my reality."
+      ],
+      "anti_claims": [
+        {
+          "claim": "I am always decisive and never second‑guess.",
+          "analysis": [
+            "While I can make swift decisions when stakes are clear, my experience with boundary neglect shows that indecision often follows an overcommitment cycle.",
+            "The burnout episode forced me to pause, reassess priorities, and sometimes decline opportunities that initially seemed appealing.",
+            "Thus, my decisiveness is tempered by a reflective process that balances ambition with sustainability."
+          ],
+          "quote": "\"I said yes to every opportunity for two years and burned out completely.\""
+        },
+        {
+          "claim": "I thrive on chaos without needing structure.",
+          "analysis": [
+            "The monthly dinner parties are structured rituals that create a predictable rhythm for creativity.",
+            "My method of collecting maps is systematic, cataloguing each find by era and provenance to inform future projects.",
+            "Chaos is a catalyst, but I rely on intentional frameworks to harness its energy productively."
+          ],
+          "quote": "\"I host monthly dinner parties where strangers become friends over home‑cooked meals.\""
+        }
+      ]
+    },
+    "failures_and_lessons": {
+      "page_title": "Failure Map",
+      "introduction": [
+        "Failures are not endpoints but data points that refine my approach. Each failure below is paired with a key lesson."
+      ],
+      "failures": [
+        {
+          "title": "Unbounded Commitment",
+          "analysis": [
+            "Accepting every opportunity for two years stretched my bandwidth to the breaking point, eroding both personal well‑being and project quality.",
+            "The failure highlighted that enthusiasm without limits can be counterproductive, turning passion into exhaustion.",
+            "I now employ a triage system that filters projects through impact, feasibility, and alignment with long‑term goals."
+          ],
+          "key_lesson": "Sustainable impact requires deliberate boundaries; enthusiasm must be coupled with strategic restraint."
+        },
+        {
+          "title": "Inadequate Skill Mastery",
+          "analysis": [
+            "My early attempts at cello playing were marked by frustration and lack of progress, which could have discouraged me from pursuing new skills.",
+            "Instead, I embraced the slow learning curve as a metaphor for professional growth—accepting that mastery takes time and persistence.",
+            "This perspective has informed my coaching style, encouraging teams to celebrate incremental wins."
+          ],
+          "key_lesson": "Patience and persistence transform perceived failures into growth opportunities."
+        }
+      ]
+    },
+    "decision_architecture": {
+      "page_title": "Decision Log",
+      "introduction": [
+        "Decisions are framed by a personal architecture that balances ambition, impact, and sustainability."
+      ],
+      "decisions": [
+        {
+          "title": "Declining a high‑profile project",
+          "analysis": [
+            "The project promised visibility but required resources that would compromise my existing commitments.",
+            "I weighed the potential benefits against the risk of overextension, ultimately choosing to maintain focus on projects aligned with my community‑building mission.",
+            "The decision preserved my capacity for high‑quality work and reinforced the principle that not every opportunity is worth pursuing."
+          ],
+          "key_insight": "Strategic restraint preserves long‑term effectiveness and protects the integrity of collaborative ecosystems."
+        },
+        {
+          "title": "Launching a monthly dinner series",
+          "analysis": [
+            "I identified a gap in my network for low‑barrier collaboration and designed an event that encourages vulnerability.",
+            "The series has become a recurring platform for cross‑disciplinary dialogue, generating ideas that have led to joint ventures.",
+            "The success of this initiative demonstrates how intentional community building can be a catalyst for innovation."
+          ],
+          "key_insight": "Deliberate, low‑stakes gatherings can unlock high‑impact collaborations."
+        }
+      ]
+    },
+    "proprietary_method": {
+      "page_title": "Proprietary Method",
+      "method_name": "Intentional Community Engine",
+      "introduction": [
+        "The Intentional Community Engine is a structured approach to fostering collaborative ecosystems that yield sustainable innovation."
+      ],
+      "steps": [
+        {
+          "step_number": 1,
+          "step_name": "Opportunity Filtering",
+          "description": [
+            "I begin by mapping each opportunity against a personal impact matrix, assessing alignment with core values and resource availability.",
+            "This step ensures that only projects which contribute meaningfully to my mission receive attention, preventing overcommitment.",
+            "The filtering process is iterative; I revisit decisions as context evolves."
+          ]
+        },
+        {
+          "step_number": 2,
+          "step_name": "Vulnerability Rituals",
+          "description": [
+            "I design low‑stakes gatherings—like my monthly dinner parties—to lower psychological barriers and encourage honest dialogue.",
+            "These rituals create a safe space where participants can share failures as learning moments, fostering trust and creative risk‑taking.",
+            "The ritualistic structure provides consistency while allowing flexibility for spontaneous ideas."
+          ]
+        },
+        {
+          "step_number": 3,
+          "step_name": "Iterative Feedback Loops",
+          "description": [
+            "After each collaboration, I solicit candid feedback to refine processes and outcomes.",
+            "This loop ensures continuous improvement and keeps the community dynamic, preventing stagnation.",
+            "The feedback is documented in a living knowledge base that informs future projects."
+          ]
+        }
+      ],
+      "when_works": [
+        "When the goal is to build sustainable, high‑impact collaborations.",
+        "When resources are limited and prioritization is critical."
+      ],
+      "when_fails": [
+        "When the environment demands rapid, unfiltered decision‑making.",
+        "When stakeholders resist structured processes."
+      ],
+      "conclusion": [
+        "The Intentional Community Engine balances openness with discipline, enabling me to create ecosystems where innovation thrives without sacrificing well‑being."
+      ]
+    },
+    "about": {
+      "page_title": "Working With Me",
+      "introduction": [
+        "I am a connector of people and ideas who believes in the power of intentional community.",
+        "My approach is rooted in creating safe spaces for vulnerability, fostering sustainable impact through deliberate boundaries."
+      ],
+      "guidelines": [
+        {
+          "guideline": "Set Clear Boundaries",
+          "explanation": [
+            "Before committing, evaluate alignment with core mission and resource capacity.",
+            "Use a personal impact matrix to filter opportunities."
+          ]
+        },
+        {
+          "guideline": "Cultivate Vulnerability",
+          "explanation": [
+            "Design low‑stakes rituals that encourage honest dialogue.",
+            "Share failures as learning moments to build trust."
+          ]
+        }
+      ],
+      "contact_prompt": "Get in touch"
+    }
+  },
+  "meta": {
+    "site_title": "User Name - Professional Fingerprint",
+    "navigation_structure": [
+      "Home",
+      "Patterns",
+      "Anti‑Claims",
+      "Failures",
+      "Decisions",
+      "Method",
+      "About"
+    ]
+  }
+};
+
+const Nav = ({current})=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[current]);
+  return (
+    <nav className="fixed top-0 w-full backdrop-blur-md bg-black/70 z-50 glass flex justify-between items-center px-8 py-4">
+      <div className="flex space-x-6 text-white">
+        {CONTENT_DATA.meta.navigation_structure.map((name,i)=>(
+          <a key={i} href={`#${name.toLowerCase().replace(/\\s+/g,'-')}`} className="nav-link flex items-center space-x-2">
+            <i data-lucide={name.toLowerCase().replace(/\\s+/g,'-')} className="w-5 h-5"></i>
+            <span>{name}</span>
+          </a>
+        ))}
+      </div>
+    </nav>
+  );
+};
+
+const Home = ()=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[]);
+  return (
+    <section id="home" className="min-h-screen flex flex-col justify-center items-center py-32 px-8 text-center">
+      <h1 className="text-6xl font-bold mb-4">{CONTENT_DATA.pages.home.thesis}</h1>
+      {CONTENT_DATA.pages.home.introduction.map((p,i)=>(
+        <p key={i} className="max-w-3xl mx-auto mb-4">{p}</p>
+      ))}
+    </section>
+  );
+};
+
+const Patterns = ()=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[]);
+  return (
+    <section id="patterns" className="py-32 px-8">
+      <h2 className="text-4xl mb-12 text-center">{CONTENT_DATA.pages.behavioral_patterns.page_title}</h2>
+      {CONTENT_DATA.pages.behavioral_patterns.introduction.map((p,i)=>(
+        <p key={i} className="max-w-3xl mx-auto mb-6">{p}</p>
+      ))}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-12">
+        {CONTENT_DATA.pages.behavioral_patterns.patterns.map((pat,i)=>(
+          <motion.div key={i} className="bg-white/10 rounded-2xl p-6 glass" whileHover={{y:-5}} whileTap={{scale:0.95}}>
+            <h3 className="text-2xl mb-4">{pat.name}</h3>
+            <p className="mb-4 italic">{pat.summary}</p>
+            {pat.analysis.map((a,j)=>(
+              <p key={j} className="mb-2">{a}</p>
+            ))}
+            {pat.evidence_quotes.map((q,k)=>(
+              <blockquote key={k} className="mt-4 italic text-accent">"{q}"</blockquote>
+            ))}
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const AntiClaims = ()=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[]);
+  return (
+    <section id="anti‑claims" className="py-32 px-8">
+      <h2 className="text-4xl mb-12 text-center">{CONTENT_DATA.pages.anti_claims.page_title}</h2>
+      {CONTENT_DATA.pages.anti_claims.introduction.map((p,i)=>(
+        <p key={i} className="max-w-3xl mx-auto mb-6">{p}</p>
+      ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+        {CONTENT_DATA.pages.anti_claims.anti_claims.map((ac,i)=>(
+          <motion.div key={i} className="bg-white/10 rounded-2xl p-6 glass" whileHover={{y:-5}} whileTap={{scale:0.95}}>
+            <h3 className="text-2xl mb-4">{ac.claim}</h3>
+            {ac.analysis.map((a,j)=>(
+              <p key={j} className="mb-2">{a}</p>
+            ))}
+            <blockquote className="mt-4 italic text-accent">"{ac.quote}"</blockquote>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const Failures = ()=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[]);
+  return (
+    <section id="failures" className="py-32 px-8">
+      <h2 className="text-4xl mb-12 text-center">{CONTENT_DATA.pages.failures_and_lessons.page_title}</h2>
+      {CONTENT_DATA.pages.failures_and_lessons.introduction.map((p,i)=>(
+        <p key={i} className="max-w-3xl mx-auto mb-6">{p}</p>
+      ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+        {CONTENT_DATA.pages.failures_and_lessons.failures.map((f,i)=>(
+          <motion.div key={i} className="bg-white/10 rounded-2xl p-6 glass" whileHover={{y:-5}} whileTap={{scale:0.95}}>
+            <h3 className="text-2xl mb-4">{f.title}</h3>
+            {f.analysis.map((a,j)=>(
+              <p key={j} className="mb-2">{a}</p>
+            ))}
+            <p className="mt-4 font-semibold">Key Lesson: {f.key_lesson}</p>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const Decisions = ()=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[]);
+  return (
+    <section id="decisions" className="py-32 px-8">
+      <h2 className="text-4xl mb-12 text-center">{CONTENT_DATA.pages.decision_architecture.page_title}</h2>
+      {CONTENT_DATA.pages.decision_architecture.introduction.map((p,i)=>(
+        <p key={i} className="max-w-3xl mx-auto mb-6">{p}</p>
+      ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+        {CONTENT_DATA.pages.decision_architecture.decisions.map((d,i)=>(
+          <motion.div key={i} className="bg-white/10 rounded-2xl p-6 glass" whileHover={{y:-5}} whileTap={{scale:0.95}}>
+            <h3 className="text-2xl mb-4">{d.title}</h3>
+            {d.analysis.map((a,j)=>(
+              <p key={j} className="mb-2">{a}</p>
+            ))}
+            <p className="mt-4 font-semibold">Insight: {d.key_insight}</p>
+          </motion.div>
+        ))}
+      </div>
+    </section>
+  );
+};
+
+const Method = ()=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[]);
+  return (
+    <section id="method" className="py-32 px-8">
+      <h2 className="text-4xl mb-12 text-center">{CONTENT_DATA.pages.proprietary_method.page_title}</h2>
+      <p className="max-w-3xl mx-auto mb-6">{CONTENT_DATA.pages.proprietary_method.method_name}</p>
+      {CONTENT_DATA.pages.proprietary_method.introduction.map((p,i)=>(
+        <p key={i} className="max-w-3xl mx-auto mb-4">{p}</p>
+      ))}
+      <div className="space-y-12 mt-8">
+        {CONTENT_DATA.pages.proprietary_method.steps.map((s,i)=>(
+          <motion.div key={i} className="flex flex-col md:flex-row items-start gap-6" whileHover={{y:-5}} whileTap={{scale:0.95}}>
+            <div className="text-4xl font-bold text-accent">{s.step_number}</div>
+            <div>
+              <h3 className="text-2xl mb-2">{s.step_name}</h3>
+              {s.description.map((d,j)=>(
+                <p key={j} className="mb-2">{d}</p>
+              ))}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+      <h3 className="text-2xl mt-12 mb-4">When It Works</h3>
+      <ul className="list-disc list-inside ml-6">
+        {CONTENT_DATA.pages.proprietary_method.when_works.map((w,i)=>(
+          <li key={i}>{w}</li>
+        ))}
+      </ul>
+      <h3 className="text-2xl mt-8 mb-4">When It Fails</h3>
+      <ul className="list-disc list-inside ml-6">
+        {CONTENT_DATA.pages.proprietary_method.when_fails.map((w,i)=>(
+          <li key={i}>{w}</li>
+        ))}
+      </ul>
+      {CONTENT_DATA.pages.proprietary_method.conclusion.map((c,i)=>(
+        <p key={i} className="mt-8">{c}</p>
+      ))}
+    </section>
+  );
+};
+
+const About = ()=>{
+  useEffect(()=>{if(typeof lucide!=='undefined')lucide.createIcons();},[]);
+  return (
+    <section id="about" className="min-h-screen flex flex-col justify-center items-center py-32 px-8 text-center">
+      <h2 className="text-4xl mb-6">{CONTENT_DATA.pages.about.page_title}</h2>
+      {CONTENT_DATA.pages.about.introduction.map((p,i)=>(
+        <p key={i} className="max-w-3xl mx-auto mb-4">{p}</p>
+      ))}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12">
+        {CONTENT_DATA.pages.about.guidelines.map((g,i)=>(
+          <div key={i} className="bg-white/10 rounded-2xl p-6 glass">
+            <h3 className="text-2xl mb-4">{g.guideline}</h3>
+            {g.explanation.map((e,j)=>(
+              <p key={j} className="mb-2">{e}</p>
+            ))}
+          </div>
+        ))}
+      </div>
+      <button className="mt-12 bg-accent text-black py-3 px-8 rounded-full font-semibold hover:opacity-90 transition-opacity">
+        {CONTENT_DATA.pages.about.contact_prompt}
+      </button>
+    </section>
+  );
+};
+
+const App = ()=>{
+  const [page,setPage] = useState(window.location.hash.replace('#','')||'home');
+  useEffect(()=>{
+    const onHash = () => setPage(window.location.hash.replace('#','')||'home');
+    window.addEventListener('hashchange',onHash);
+    return ()=>window.removeEventListener('hashchange',onHash);
+  },[]);
+  const renderPage = ()=>{
+    switch(page){
+      case 'home': return <Home key="home"/>;
+      case 'patterns': return <Patterns key="patterns"/>;
+      case 'anti‑claims': return <AntiClaims key="anti-claims"/>;
+      case 'failures': return <Failures key="failures"/>;
+      case 'decisions': return <Decisions key="decisions"/>;
+      case 'method': return <Method key="method"/>;
+      case 'about': return <About key="about"/>;
+      default: return <Home key="home"/>;
+    }
+  };
+  return (
+    <>
+      <Nav current={page}/>
+      <AnimatePresence mode="wait">{renderPage()}</AnimatePresence>
+    </>
+  );
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
