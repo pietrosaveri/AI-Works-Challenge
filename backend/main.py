@@ -7,18 +7,43 @@ import os
 import json
 from pydantic import BaseModel
 import sys
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Add project root to sys.path to allow imports from backend module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.llm_service import analyze_profile, mood_agent, content_strategist_agent, ux_architect_agent, icon_curator_agent, react_developer_agent, orchestrator_agent, selenium_validator_agent
+from backend.llm_service import (
+    # analyze_profile,  # Legacy function - removed during refactoring
+    mood_agent,
+    content_strategist_agent,
+    ux_architect_agent,
+    icon_curator_agent,
+    react_developer_agent,
+    orchestrator_agent,
+    # selenium_validator_agent,  # Legacy function - removed during refactoring
+    Workspace,
+)
 from backend.scraper import process_inputs
 from backend.site_generator import generate_dynamic_website
 
+def save_frontend_data(data: dict):
+    """Saves the aggregated site data to the frontend source folder."""
+    frontend_data_dir = os.path.join("frontend", "src", "data")
+    try:
+        os.makedirs(frontend_data_dir, exist_ok=True)
+        file_path = os.path.join(frontend_data_dir, "site_data.json")
+        with open(file_path, "w") as f:
+            json.dump(data, f, indent=2)
+        print(f"✅ Frontend data saved to: {file_path}")
+    except Exception as e:
+        print(f"❌ Failed to save frontend data: {e}")
+
 app = FastAPI(title="Anti-Portfolio Generator")
 
-# Ensure generated site directory exists for StaticFiles
-os.makedirs("generated_site/dist", exist_ok=True)
+# No longer mounting generated_site as it's now a standalone Node.js project
 
 # CORS
 app.add_middleware(
@@ -91,9 +116,31 @@ async def analyze_profile_endpoint(
     # MULTI-AGENT ORCHESTRATION
     # ============================================================================
     
-    print("\n=== MOOD AGENT ===")
-    mood_system = mood_agent(vibe_dict)
-    print(f"Design System: {mood_system.get('layout_style', 'Unknown')}")
+    print("\n=== ART DIRECTOR AGENT (DESIGN DNA) ===")
+    # Import here to avoid circular imports if placed at top
+    from backend.llm_service import art_director_agent
+    design_dna = art_director_agent(raw_text, answers_dict, vibe_dict)
+    print(f"Design DNA Generated:")
+    print(f"  - Layout: {design_dna.get('layout')}")
+    print(f"  - Motion: {design_dna.get('motion')}")
+    print(f"  - Theme: {design_dna.get('theme')}")
+    print(f"  - Archetype: {design_dna.get('archetype')}")
+    print(f"  - Color Palette: {design_dna.get('color_palette')}")
+    print(f"  - Typography: {design_dna.get('typography_pair')}")
+    
+    # Design DNA replaces the Mood Agent - it contains all design system info
+    mood_system = {
+        'colors': {
+            'primary': design_dna['color_palette'][0],
+            'secondary': design_dna['color_palette'][1],
+            'accent': design_dna['color_palette'][3],
+            'background': design_dna['color_palette'][0],
+            'text': design_dna['color_palette'][4]
+        },
+        'typography': design_dna.get('typography_pair'),
+        'layout_style': design_dna.get('layout'),
+        'theme': design_dna.get('theme')
+    }
     
     print("\n=== CONTENT STRATEGIST AGENT (CENTRAL) ===")
     content_strategy = content_strategist_agent(raw_text, answers_dict)
@@ -107,66 +154,92 @@ async def analyze_profile_endpoint(
     
     print("\n=== UX ARCHITECT AGENT ===")
     user_name = answers_dict.get('who_are_you', 'Professional')[:50]
-    ux_plan = ux_architect_agent(mood_system, content_strategy, user_name, image_paths)
+    ux_plan = ux_architect_agent(design_dna, content_strategy, user_name, image_paths)
     nav_structure = (ux_plan.get('navigation') or {}).get('structure', [])
     print(f"UX Plan Navigation: {nav_structure}")
     print(f"UX Plan Pages: {len(ux_plan.get('pages', []))}")
     
     print("\n=== ICON CURATOR AGENT ===")
-    icon_strategy = icon_curator_agent(mood_system, content_strategy, ux_plan, user_name)
+    icon_strategy = icon_curator_agent(design_dna, content_strategy, ux_plan, user_name)
     print(f"Icon Library: {icon_strategy.get('icon_library', 'Unknown')}")
     print(f"Icon Suggestions: {len(icon_strategy.get('suggestions', []))} icons")
     print(f"Usage Philosophy: {icon_strategy.get('usage_philosophy', 'N/A')[:80]}")
     
     print("\n=== REACT DEVELOPER AGENT ===")
-    react_code = react_developer_agent(mood_system, content_strategy, ux_plan, user_name, image_paths, icon_strategy=icon_strategy)
+    react_code = react_developer_agent(
+        design_dna,
+        content_strategy, 
+        ux_plan, 
+        user_name, 
+        image_paths, 
+        icon_strategy=icon_strategy
+    )
     print(f"Generated React Code: {len(react_code)} characters")
-    
-    print("\n=== ORCHESTRATOR AGENT ===")
-    orchestrator = orchestrator_agent(mood_system, content_strategy, ux_plan, react_code, user_name, image_paths)
+
+    # Build collaborative workspace and let orchestrator drive incremental fixes
+    workspace = Workspace(
+        design_dna=design_dna,
+        content_strategy=content_strategy,
+        ux_plan=ux_plan,
+        icon_plan=icon_strategy,
+        react_code=react_code,
+        action_log=["v0: initial generation"]
+    )
+
+    print("\n=== ORCHESTRATOR AGENT (COLLAB) ===")
+    orchestrator = orchestrator_agent(
+        design_dna=workspace.design_dna,
+        content_strategy=workspace.content_strategy,
+        ux_plan=workspace.ux_plan,
+        react_code=workspace.react_code,
+        user_name=user_name,
+        image_paths=image_paths
+    )
     print(f"Orchestrator Summary: {orchestrator.get('summary', 'No summary')}"[:160])
-    
-    # ORCHESTRATOR FEEDBACK LOOP - Keep regenerating until orchestrator is satisfied
-    max_orchestrator_retries = 2
-    orchestrator_retry_count = 0
-    
-    while orchestrator.get('needs_regeneration') and orchestrator_retry_count < max_orchestrator_retries:
-        print(f"\n=== ORCHESTRATOR REQUESTS REGENERATION (Attempt {orchestrator_retry_count + 1}/{max_orchestrator_retries}) ===")
-        print(f"Issues found: {orchestrator.get('regeneration_instructions', 'See feedback')}")
-        
-        # Regenerate React code with orchestrator's specific feedback
-        react_code = react_developer_agent(
-            mood_system,
-            content_strategy,
-            ux_plan,
-            user_name,
-            image_paths,
-            orchestrator_feedback=orchestrator.get('regeneration_instructions', 'Fix the issues identified'),
-            icon_strategy=icon_strategy
-        )
-        print(f"Regenerated React Code: {len(react_code)} characters")
-        
-        # Re-run orchestrator to verify the fixes
-        print("\n=== RE-EVALUATING WITH ORCHESTRATOR ===")
-        orchestrator = orchestrator_agent(mood_system, content_strategy, ux_plan, react_code, user_name, image_paths)
-        print(f"Orchestrator Re-evaluation: {orchestrator.get('summary', 'No summary')}"[:160])
-        
-        orchestrator_retry_count += 1
-    
     if orchestrator.get('needs_regeneration'):
-        print(f"\n⚠️  Orchestrator still has concerns after {max_orchestrator_retries} attempts, proceeding anyway")
+        print("⚠️  Issues remain after orchestrator attempts")
     else:
-        print("\n✅ Orchestrator approved - no further issues detected")
+        print("✅ Orchestrator approved - workspace clean")
+
+    # Update locals from workspace after orchestration
+    content_strategy = workspace.content_strategy
+    ux_plan = workspace.ux_plan
+    icon_strategy = workspace.icon_plan
+    react_code = workspace.react_code
     
+    # ============================================================================
+    # SAVE DATA FOR FRONTEND (Complex Site Generation)
+    # ============================================================================
+    site_data = {
+        "user_name": user_name,
+        "design_dna": design_dna,
+        "content_strategy": content_strategy,
+        "ux_plan": ux_plan,
+        "icon_strategy": icon_strategy,
+        "mood_system": mood_system
+    }
+    
+    # DISABLED: User requested frontend to be clean. Data is now saved to generated_site/dist/data/site_data.json
+    # frontend_data_path = os.path.join("frontend", "src", "data", "site_data.json")
+    # try:
+    #     os.makedirs(os.path.dirname(frontend_data_path), exist_ok=True)
+    #     with open(frontend_data_path, "w") as f:
+    #         json.dump(site_data, f, indent=2)
+    #     print(f"✅ Frontend data injected at: {frontend_data_path}")
+    # except Exception as e:
+    #     print(f"❌ Failed to save frontend data: {e}")
+
     # Legacy profile data for the analysis view (kept for backward compatibility)
-    profile_data = analyze_profile(raw_text, answers_dict)
+    # NOTE: analyze_profile was removed during refactoring - using content_strategy instead
+    profile_data = workspace.content_strategy  # Use the modern content strategy
     
-    # Generate Dynamic Website
+    # Generate Dynamic Website (Standalone Node.js Project)
     website_ready = False
     website_url = None
     
     print("\n=== SITE GENERATOR ===")
-    website_ready = generate_dynamic_website(react_code, user_name, image_paths)
+    react_components = {}  # Use default components for now
+    website_ready = generate_dynamic_website(react_components, user_name, image_paths, site_data)
     if not website_ready:
         print("❌ Site generation failed!")
         return {
@@ -174,6 +247,10 @@ async def analyze_profile_endpoint(
             "message": "Site generation failed",
             "website_ready": False
         }
+    
+    # The generated site is a standalone Node.js project at /generated_site
+    # User needs to run: cd generated_site && npm run dev
+    website_url = "http://localhost:3000"  # Default Vite dev server port
     
     website_url = "/portfolio/"
     print(f"✅ Dynamic site ready at: {website_url}")
@@ -194,13 +271,12 @@ async def analyze_profile_endpoint(
         
         # Re-run orchestrator with validation feedback
         orchestrator = orchestrator_agent(
-            mood_system, 
-            content_strategy, 
-            ux_plan, 
-            react_code, 
-            user_name, 
-            image_paths,
-            validation_report=validation_report
+            design_dna=workspace.design_dna,
+            content_strategy=workspace.content_strategy,
+            ux_plan=workspace.ux_plan,
+            react_code=workspace.react_code,
+            user_name=user_name,
+            image_paths=image_paths
         )
         
         # If orchestrator requests regeneration, do it
@@ -209,7 +285,7 @@ async def analyze_profile_endpoint(
             
             # Regenerate React code with orchestrator feedback
             react_code = react_developer_agent(
-                mood_system,
+                design_dna,
                 content_strategy,
                 ux_plan,
                 user_name,
@@ -219,7 +295,7 @@ async def analyze_profile_endpoint(
             )
             
             # Regenerate site
-            website_ready = generate_dynamic_website(react_code, user_name, image_paths)
+            website_ready = generate_dynamic_website(react_code, user_name, image_paths, site_data)
             if not website_ready:
                 print("❌ Regeneration failed!")
                 break
@@ -250,8 +326,9 @@ async def analyze_profile_endpoint(
 
 # CV generation removed: this app only generates the dynamic site.
 
-# Serve Frontend
-app.mount("/portfolio", StaticFiles(directory="generated_site/dist", html=True), name="portfolio")
+# Serve Frontend (Plato main site)
+# Note: Generated portfolios are now standalone Node.js projects
+# Users run them separately with: cd generated_site && npm run dev
 app.mount("/", StaticFiles(directory="frontend", html=True), name="static")
 
 if __name__ == "__main__":

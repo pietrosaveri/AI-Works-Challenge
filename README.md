@@ -74,10 +74,14 @@ A **fully functional, animated React website** that captures not what you've don
 ### Required Software
 - **Python 3.8+**
 - **Node.js 16+** and npm (for the frontend)
-- **[LM Studio](https://lmstudio.ai/)** - Local LLM inference server
+- **LLM Provider** (choose one):
+  - **[LM Studio](https://lmstudio.ai/)** - Local LLM inference server (free, runs offline)
+  - **[Google AI Studio](https://aistudio.google.com/)** - Gemini API (requires API key)
 
-### Recommended Model
-We recommend **Qwen 2.5 32B Instruct** or **GPT-OSS 20B** for optimal results:
+### LLM Options
+
+#### Option 1: Local LLM with LM Studio (Recommended for Privacy)
+**Recommended Model**: **Qwen 2.5 32B Instruct** or **GPT-OSS 20B**
 - High reasoning capability for content analysis
 - Strong instruction-following for structured outputs
 - Good context window (8k+ tokens recommended)
@@ -87,9 +91,18 @@ We recommend **Qwen 2.5 32B Instruct** or **GPT-OSS 20B** for optimal results:
 - Llama 3.1 8B+ (good balance of speed and quality)
 - Any OpenAI-compatible model with 8B+ parameters
 
+#### Option 2: Gemini API via Google AI Studio
+- **Recommended Model**: `gemini-1.5-pro` (default)
+- **Alternative**: `gemini-1.5-flash` (faster, cheaper)
+- Get your API key from: [https://aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)
+- No local installation required
+- Pay-per-use pricing
+
 ## Installation
 
-### 1. Set Up LM Studio
+### 1. Configure Your LLM Provider
+
+#### Option A: Using LM Studio (Local)
 
 1. Download and install [LM Studio](https://lmstudio.ai/)
 2. Download a recommended model:
@@ -101,15 +114,56 @@ We recommend **Qwen 2.5 32B Instruct** or **GPT-OSS 20B** for optimal results:
    - Click "Start Server"
    - Ensure it's running on `http://localhost:1234`
 
+#### Option B: Using Gemini API
+
+1. Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+3. Edit `.env` and configure:
+   ```env
+   LLM_PROVIDER=gemini
+   GEMINI_API_KEY=your-actual-api-key-here
+   GEMINI_MODEL=gemini-1.5-pro
+   ```
+
 ### 2. Install Backend Dependencies
 
 ```bash
 # Clone the repository
 cd challenge2
+Configuration
 
-# Create a virtual environment (recommended)
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+The application uses a `.env` file for configuration. Copy `.env.example` to `.env` and adjust settings:
+
+```env
+# Choose your LLM provider: "local" or "gemini"
+LLM_PROVIDER=local
+
+# Local LLM Settings (if using LM Studio)
+LOCAL_LLM_BASE_URL=http://localhost:1234/v1
+LOCAL_LLM_MODEL=local-model
+
+# Gemini API Settings (if using Google AI Studio)
+GEMINI_API_KEY=your-gemini-api-key-here
+GEMINI_MODEL=gemini-1.5-pro
+
+# LLM Parameters (applies to both providers)
+LLM_TEMPERATURE=0.3
+LLM_MAX_TOKENS=32000
+```
+
+**Configuration Options:**
+- `LLM_PROVIDER`: Set to `local` for LM Studio or `gemini` for Google AI Studio
+- `LLM_TEMPERATURE`: Lower values (0.1-0.3) for more consistent outputs
+- `LLM_MAX_TOKENS`: Maximum response length (32000 recommended)
+
+## Usage
+
+### 1. Start Your LLM Provider
+- **If using LM Studio**: Ensure LM Studio is running with your model loaded on port `1234`
+- **If using Gemini**: Your API key in `.env` is all you need
 
 # Install dependencies
 pip install -r requirements.txt
@@ -142,10 +196,19 @@ The backend API will start at `http://127.0.0.1:8000`.
 # In a new terminal, from the frontend directory
 cd frontend
 npm run dev
-```
+```LM Connection Issues
 
-The frontend will start at `http://localhost:5173`.
+#### Local LLM (LM Studio)
+- Ensure LM Studio is running and the server is started
+- Check that the port is `1234` (default)
+- Verify the model is loaded in LM Studio
+- Check `.env` has `LLM_PROVIDER=local`
 
+#### Gemini API
+- Verify your API key is correct in `.env`
+- Check you have API credits/quota available
+- Ensure `.env` has `LLM_PROVIDER=gemini`
+- Visit [Google AI Studio](https://aistudio.google.com/) to check API status
 ### 4. Create Your Anti-Portfolio
 
 1. **Navigate to** `http://localhost:5173`

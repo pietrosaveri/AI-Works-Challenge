@@ -8,6 +8,9 @@ openai
 pypdf
 langchain
 langchain-openai
+langchain-google-genai
 pydantic
 selenium
 webdriver-manager
+python-dotenv
+google-generativeai

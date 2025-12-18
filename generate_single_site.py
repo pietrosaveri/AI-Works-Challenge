@@ -91,9 +91,18 @@ def generate_site_for_person(json_file_path, output_folder):
         )
         orchestrator_retry_count += 1
     
+    # Prepare site data
+    site_data = {
+        "user_name": user_name,
+        "mood_system": mood_system,
+        "content_strategy": content_strategy,
+        "ux_plan": ux_plan,
+        "icon_strategy": icon_strategy
+    }
+
     # Generate website
     print("\n=== SITE GENERATOR ===")
-    website_ready = generate_dynamic_website(react_code, user_name, [])
+    website_ready = generate_dynamic_website(react_code, user_name, [], site_data)
     
     if not website_ready:
         print(f"❌ Site generation failed for {name}!")

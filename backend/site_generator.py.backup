@@ -1,0 +1,519 @@
+import os
+import shutil
+import json
+import subprocess
+
+# Directories
+GENERATED_SITE_DIR = os.path.abspath("generated_site")
+
+
+def generate_dynamic_website(react_components: dict, user_name: str, image_paths: list = None, site_data: dict = None) -> bool:
+    """
+    Professional Site Generator: Creates a standalone Node.js/React/Vite project.
+    
+    Args:
+        react_components: Dictionary with React component code (App.jsx, components, etc.)
+        user_name: User's name for directory/file naming
+        image_paths: List of paths to uploaded images
+        site_data: Dictionary containing the site data (design_dna, content_strategy, etc.)
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # CRITICAL VALIDATION: Check for duplicate motion declarations that cause blank pages
+        import re
+        if '<script type="text/babel">' in html_code:
+            # Extract the Babel script content
+            babel_start = html_code.find('<script type="text/babel">')
+            babel_end = html_code.find('</script>', babel_start)
+            if babel_start != -1 and babel_end != -1:
+                babel_content = html_code[babel_start:babel_end]
+                
+                # Count how many times motion is declared
+                motion_declarations = len(re.findall(r'const\s+\{[^}]*motion[^}]*\}\s*=', babel_content))
+                motion_direct_assignments = len(re.findall(r'const\s+motion\s*=', babel_content))
+                
+                total_motion_declarations = motion_declarations + motion_direct_assignments
+                
+                if total_motion_declarations > 2:  # We expect: 1 for motion, 1 for AnimatePresence (or 1 destructuring)
+                    print(f"⚠️  WARNING: Found {total_motion_declarations} motion declarations - this causes blank pages!")
+                    print(f"[AUTO-FIX] Removing duplicate motion declarations...")
+                    
+                    # Remove dangerous window.Motion destructuring
+                    html_code = re.sub(
+                        r'\n\s*const\s*\{\s*motion[^}]*\}\s*=\s*window\.Motion\s*;?\s*',
+                        '\n',
+                        html_code
+                    )
+                    html_code = re.sub(
+                        r'\n\s*const\s*\{\s*motion[^}]*\}\s*=\s*window\[.framer-motion.\]\s*;?\s*',
+                        '\n',
+                        html_code
+                    )
+                    print(f"✅ Duplicate declarations removed")
+        
+        # Additional validation: Check for CONTENT_DATA or CONTENT
+        if '<script type="text/babel">' in html_code and 'CONTENT_DATA' not in html_code and 'const CONTENT' not in html_code:
+            print("⚠️  WARNING: Generated HTML is missing CONTENT_DATA - page may be empty!")
+            print("This indicates the LLM may have failed to embed content properly.")
+        
+        # Clean output directory
+        if os.path.exists(GENERATED_SITE_DIR):
+            shutil.rmtree(GENERATED_SITE_DIR)
+        os.makedirs(GENERATED_SITE_DIR)
+        
+        # Create dist directory for serving
+        dist_dir = os.path.join(GENERATED_SITE_DIR, "dist")
+        os.makedirs(dist_dir)
+        
+        # Create assets directory for images
+        assets_dir = os.path.join(dist_dir, "assets")
+        os.makedirs(assets_dir, exist_ok=True)
+        
+        # Copy frontend assets (fonts, etc.) if they exist
+        frontend_assets = os.path.join("frontend", "src", "assets")
+        if os.path.exists(frontend_assets):
+            try:
+                # Copy recursively, skipping if destination exists (images might be there)
+                for item in os.listdir(frontend_assets):
+                    s = os.path.join(frontend_assets, item)
+                    d = os.path.join(assets_dir, item)
+                    if os.path.isdir(s):
+                        if os.path.exists(d):
+                            shutil.rmtree(d)
+                        shutil.copytree(s, d)
+                    else:
+                        shutil.copy2(s, d)
+                print(f"✅ Copied frontend assets from {frontend_assets}")
+            except Exception as e:
+                print(f"⚠️  Failed to copy frontend assets: {e}")
+
+        # Copy frontend styles
+        frontend_styles = os.path.join("frontend", "src", "styles", "index.css")
+        if os.path.exists(frontend_styles):
+            try:
+                shutil.copy2(frontend_styles, os.path.join(dist_dir, "styles.css"))
+                print(f"✅ Copied frontend styles from {frontend_styles}")
+                
+                # Inject link to styles.css
+                if "</head>" in html_code:
+                    html_code = html_code.replace("</head>", '<link rel="stylesheet" href="styles.css">\n</head>')
+            except Exception as e:
+                print(f"⚠️  Failed to copy frontend styles: {e}")
+
+        # Create data directory and save site_data.json if provided
+        if site_data:
+            data_dir = os.path.join(dist_dir, "data")
+            os.makedirs(data_dir, exist_ok=True)
+            data_path = os.path.join(data_dir, "site_data.json")
+            with open(data_path, 'w', encoding='utf-8') as f:
+                json.dump(site_data, f, indent=2)
+            print(f"✅ Site data saved to: {data_path}")
+
+        # Copy images to assets directory
+        copied_images = []
+        if image_paths:
+            for img_path in image_paths:
+                if os.path.exists(img_path):
+                    filename = os.path.basename(img_path)
+                    dest_path = os.path.join(assets_dir, filename)
+                    shutil.copy2(img_path, dest_path)
+                    copied_images.append(filename)
+                    print(f"📸 Copied image: {filename}")
+        
+        # Create dummy favicon to prevent 404s
+        favicon_path = os.path.join(dist_dir, "favicon.ico")
+        # Create a 1x1 transparent GIF or similar as favicon
+        # 1x1 transparent GIF bytes
+        favicon_bytes = b'\x47\x49\x46\x38\x39\x61\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\xff\x21\xf9\x04\x01\x00\x00\x00\x00\x2c\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02\x44\x01\x00\x3b'
+        with open(favicon_path, 'wb') as f:
+            f.write(favicon_bytes)
+            
+        # Also create apple-touch-icon.png to prevent 404s
+        apple_icon_path = os.path.join(dist_dir, "apple-touch-icon.png")
+        # Just copy the favicon bytes (it's not a valid png but browsers will just ignore it or show nothing, better than 404)
+        # Or better, just write the same bytes. It's a hack but it stops the 404.
+        with open(apple_icon_path, 'wb') as f:
+            f.write(favicon_bytes)
+            
+        # Write the HTML file
+        index_path = os.path.join(dist_dir, "index.html")
+        with open(index_path, 'w', encoding='utf-8') as f:
+            f.write(html_code)
+        
+        print(f"✅ Dynamic site written to: {index_path}")
+        print(f"📦 Site size: {len(html_code)} bytes")
+        print(f"🖼️  Images available: {len(copied_images)}")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ Site generation error: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+# ============================================================================
+# LEGACY TEMPLATE-BASED GENERATOR (kept for reference, not used anymore)
+# ============================================================================
+
+# Updated Template Directory
+TEMPLATE_DIR = os.path.abspath("NewSiteTemplate/masterPortfolio")
+GENERATED_SITE_DIR = os.path.abspath("generated_site")
+
+def map_fingerprint_to_portfolio_js(data: dict) -> str:
+    meta = data.get("meta", {})
+    fp = data.get("fingerprint", {})
+    
+    # Social Media
+    socials = []
+    if meta.get("social", {}).get("github"):
+        socials.append({
+            "name": "Github",
+            "link": meta["social"]["github"],
+            "fontAwesomeIcon": "fa-github",
+            "backgroundColor": "#181717"
+        })
+    if meta.get("social", {}).get("linkedin"):
+        socials.append({
+            "name": "LinkedIn",
+            "link": meta["social"]["linkedin"],
+            "fontAwesomeIcon": "fa-linkedin-in",
+            "backgroundColor": "#0077B5"
+        })
+    if meta.get("social", {}).get("email"):
+        socials.append({
+            "name": "Gmail",
+            "link": f"mailto:{meta['social']['email']}",
+            "fontAwesomeIcon": "fa-google",
+            "backgroundColor": "#D14836"
+        })
+
+    # Patterns -> Skills
+    patterns = fp.get("patterns", [])
+    skill_sentences = [f"{p['name']}: {p['description']}" for p in patterns]
+    software_skills = []
+    for p in patterns:
+        software_skills.append({
+            "skillName": p['name'],
+            "fontAwesomeClassname": "fas fa-fingerprint", # Generic icon
+            "style": {"backgroundColor": "transparent", "color": "#333"}
+        })
+
+    # Method -> Degrees
+    method = fp.get("method", {})
+    method_steps = method.get("steps", [])
+    if method.get("when_works"):
+        method_steps.append(f"Works when: {method['when_works']}")
+    if method.get("when_fails"):
+        method_steps.append(f"Fails when: {method['when_fails']}")
+        
+    degrees_list = [{
+        "title": method.get("name", "Proprietary Method"),
+        "subtitle": "Proprietary Working Model",
+        "logo_path": "iiitk_logo.png", # Placeholder
+        "alt_name": "Method",
+        "duration": "Ongoing",
+        "descriptions": method_steps,
+        "website_link": "#"
+    }]
+
+    # Anti-Claims -> Certifications
+    anti_claims = fp.get("anti_claims", [])
+    certs_list = []
+    colors = ["#FF0000", "#CC0000", "#990000", "#660000", "#330000"]
+    for i, ac in enumerate(anti_claims):
+        certs_list.append({
+            "title": ac.get("claim", "Anti-Claim"),
+            "subtitle": "Boundary",
+            "logo_path": "google_logo.png", # Placeholder
+            "certificate_link": "#",
+            "alt_name": "Anti-Claim",
+            "color_code": colors[i % len(colors)]
+        })
+
+    # Decision Log & Failure Map -> Experience
+    decision_log = fp.get("decision_log", [])
+    failure_map = fp.get("failure_map", [])
+    
+    decision_experiences = []
+    for d in decision_log:
+        decision_experiences.append({
+            "title": d.get("choice", "Decision"),
+            "company": d.get("problem", "Context"),
+            "company_url": "#",
+            "logo_path": "google_logo.png",
+            "duration": "Decision Log",
+            "location": "Strategic",
+            "description": f"Options Considered: {d.get('options')}. Trade-off: {d.get('trade_off')}. Impact: {d.get('impact')}.",
+            "color": "#000000"
+        })
+        
+    failure_experiences = []
+    for f in failure_map:
+        failure_experiences.append({
+            "title": f.get("decision", "Action"),
+            "company": f.get("context", "Context"),
+            "company_url": "#",
+            "logo_path": "google_logo.png",
+            "duration": "Failure Map",
+            "location": "Learning",
+            "description": f"Reason: {f.get('failure_reason')}. Lesson Learned: {f.get('lesson')}.",
+            "color": "#FF0000"
+        })
+
+    # Working With Me -> Publications
+    working_with_me = fp.get("working_with_me", [])
+    pubs_list = []
+    for i, point in enumerate(working_with_me):
+        pubs_list.append({
+            "id": f"wwm-{i}",
+            "name": f"Guideline #{i+1}",
+            "createdAt": "2025-01-01",
+            "description": point,
+            "url": "#"
+        })
+
+    # Construct JS Content
+    user_name = meta.get('name', 'Professional Fingerprint')
+    
+    js_content = f"""
+/* Generated Professional Fingerprint */
+
+const settings = {{
+  isSplash: false, // Disabled - goes directly to content
+}};
+
+const seo = {{
+  title: "{user_name} - Professional Thesis",
+  description: "{meta.get('thesis', 'A structural analysis of professional psyche.')}",
+  og: {{
+    title: "{user_name} - Professional Thesis",
+    type: "website",
+    url: "http://localhost:8000/portfolio",
+  }},
+}};
+
+const greeting = {{
+  title: "{user_name}",
+  logo_name: "{user_name.replace(' ', '')}",
+  nickname: "Professional Fingerprint",
+  subTitle: "{meta.get('thesis', 'A structural analysis of professional psyche.')}",
+  resumeLink: "",
+  portfolio_repository: "",
+  githubProfile: "{meta.get('social', {}).get('github', '#')}",
+}};
+
+const socialMediaLinks = {json.dumps(socials, indent=2)};
+
+const skills = {{
+  data: [
+    {{
+      title: "Behavioral Patterns",
+      fileName: "DataScienceImg",
+      skills: {json.dumps(['⚡ ' + s for s in skill_sentences], indent=2)},
+      softwareSkills: {json.dumps(software_skills, indent=2)},
+    }},
+  ],
+}};
+
+const competitiveSites = {{
+  competitiveSites: [],
+}};
+
+const degrees = {{
+  degrees: {json.dumps(degrees_list, indent=2)},
+}};
+
+const certifications = {{
+  certifications: {json.dumps(certs_list, indent=2)},
+}};
+
+const experience = {{
+  title: "Professional Analysis",
+  subtitle: "Decisions, Trade-offs, and Learning Moments",
+  description: "A forensic examination of key choices, strategic trade-offs, and instructive failures that define this behavioral pattern.",
+  header_image_path: "experience.svg",
+  sections: [
+    {{
+      title: "Decision Log",
+      work: true,
+      experiences: {json.dumps(decision_experiences, indent=2)},
+    }},
+    {{
+      title: "Failure Map",
+      experiences: {json.dumps(failure_experiences, indent=2)},
+    }},
+  ],
+}};
+
+const projectsHeader = {{
+  title: "Working With Me",
+  description: "Operational guidelines derived from behavioral analysis.",
+  avatar_image_path: "projects_image.svg",
+}};
+
+const publicationsHeader = {{
+  title: "Working With Me",
+  description: "Operational guidelines derived from behavioral analysis.",
+  avatar_image_path: "projects_image.svg",
+}};
+
+const publications = {{
+  data: {json.dumps(pubs_list, indent=2)},
+}};
+
+const contactPageData = {{
+  contactSection: {{
+    title: "Contact",
+    profile_image_path: "animated_ashutosh.png",
+    description: "Connect to discuss this professional fingerprint analysis.",
+  }},
+  blogSection: {{
+    title: "Notes",
+    subtitle: "Additional observations and insights.",
+    link: "#",
+    avatar_image_path: "blogs_image.svg",
+  }},
+  addressSection: {{
+    title: "",
+    subtitle: "",
+    avatar_image_path: "address_image.svg",
+    location_map_link: "",
+  }},
+  phoneSection: {{
+    title: "",
+    subtitle: "",
+  }},
+}};
+
+const bigProjects = {{
+  title: "Key Behavioral Patterns",
+  subtitle: "Structural insights from professional analysis",
+  projects: [],
+}};
+
+const achievementsList = {{
+  data: [],
+}};
+
+const blogSection = {{
+  title: "Analysis Notes",
+  subtitle: "Supplementary observations on behavioral patterns.",
+  displayMediumBlogs: "false",
+  blogs: [],
+}};
+
+const talkSection = {{
+  title: "",
+  subtitle: "",
+  talks: [],
+}};
+
+const podcastSection = {{
+  title: "",
+  subtitle: "",
+  podcast: [],
+}};
+
+export {{
+  settings,
+  seo,
+  greeting,
+  socialMediaLinks,
+  skills,
+  competitiveSites,
+  degrees,
+  certifications,
+  experience,
+  projectsHeader,
+  bigProjects,
+  achievementsList,
+  blogSection,
+  talkSection,
+  podcastSection,
+  publicationsHeader,
+  publications,
+  contactPageData,
+}};
+"""
+    return js_content
+
+def generate_website(profile_data: dict):
+    print("[Site Generator] Starting website generation...")
+    
+    # 1. Copy Template Fresh Every Time
+    if os.path.exists(GENERATED_SITE_DIR):
+        print("[Site Generator] Removing old generated_site...")
+        shutil.rmtree(GENERATED_SITE_DIR)
+    
+    print("[Site Generator] Copying template...")
+    try:
+        shutil.copytree(TEMPLATE_DIR, GENERATED_SITE_DIR)
+    except Exception as e:
+        print(f"[Site Generator] Error copying template: {e}")
+        return False
+    
+    # 2. Update portfolio.js
+    config_path = os.path.join(GENERATED_SITE_DIR, "src", "portfolio.js")
+    print(f"[Site Generator] Writing config to {config_path}...")
+    
+    js_content = map_fingerprint_to_portfolio_js(profile_data)
+    
+    with open(config_path, "w") as f:
+        f.write(js_content)
+        
+    # 3. Build Site
+    print("[Site Generator] Installing npm dependencies...")
+    try:
+        # Using npm install --legacy-peer-deps because old templates often have conflicts
+        result = subprocess.run(
+            ["npm", "install", "--legacy-peer-deps"], 
+            cwd=GENERATED_SITE_DIR, 
+            check=True, 
+            capture_output=True,
+            text=True
+        )
+        print(f"[Site Generator] npm install stdout: {result.stdout[:200]}")
+        
+        print("[Site Generator] Building site with React...")
+        # Suppress browserslist warnings by setting environment variable
+        build_env = os.environ.copy()
+        build_env["BROWSERSLIST_IGNORE_OLD_DATA"] = "1"
+        
+        result = subprocess.run(
+            ["npm", "run", "build"], 
+            cwd=GENERATED_SITE_DIR, 
+            check=True, 
+            capture_output=True,
+            text=True,
+            env=build_env
+        )
+        print(f"[Site Generator] npm build stdout: {result.stdout[:500]}")
+        
+        # Check if build was created (React usually creates 'build' folder, not 'dist')
+        build_path = os.path.join(GENERATED_SITE_DIR, "build")
+        if os.path.exists(build_path) and os.path.isdir(build_path):
+            print(f"[Site Generator] SUCCESS! build folder created.")
+            
+            # Move build to dist for consistency with main.py serving
+            dist_path = os.path.join(GENERATED_SITE_DIR, "dist")
+            if os.path.exists(dist_path):
+                shutil.rmtree(dist_path)
+            shutil.move(build_path, dist_path)
+            
+            return True
+        else:
+            print("[Site Generator] ERROR: build folder not created!")
+            return False
+            
+    except subprocess.CalledProcessError as e:
+        print(f"[Site Generator] ERROR: {e}")
+        print(f"[Site Generator] FULL stderr:\n{e.stderr}")
+        print(f"[Site Generator] FULL stdout:\n{e.stdout}")
+        return False
+    except Exception as e:
+        print(f"[Site Generator] General error: {e}")
+        return False
