@@ -8,6 +8,8 @@ import json
 from pydantic import BaseModel
 import sys
 
+#aggiungo commenod
+
 # Add project root to sys.path to allow imports from backend module
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
